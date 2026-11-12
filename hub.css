@@ -1,0 +1,44 @@
+/* ゲーム選択画面 */
+.hub-head { text-align: center; padding: 30px 0 6px; }
+.hub-mark { font-size: 3rem; animation: hop 2.4s ease-in-out infinite; }
+.hub-head h1 {
+  font-size: 2.6rem; font-weight: 800; letter-spacing: .06em; margin-top: 4px;
+  background: linear-gradient(90deg, #ff5a8a, #ffb347, #ffd84d);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.hub-head p { color: var(--muted); margin-top: 4px; }
+.hub-sec { font-size: .85rem; color: var(--muted); letter-spacing: .08em; margin: 26px 4px 8px; }
+.games { display: grid; gap: 14px; }
+.game-card {
+  position: relative; display: flex; flex-direction: column; text-decoration: none; color: var(--text);
+  background: var(--card); border: 1px solid var(--card-b); border-radius: 22px; overflow: hidden;
+  transition: transform .15s, border-color .2s, box-shadow .2s; animation: slide-up .5s backwards;
+}
+.game-card + .game-card { animation-delay: .1s; }
+.game-card:hover { transform: translateY(-3px); border-color: #ffffff40; box-shadow: 0 16px 36px -18px #000; }
+.game-card:active { transform: scale(.98); }
+.gc-art { height: 120px; display: grid; place-items: center; }
+.game-card.tier .gc-art { background: linear-gradient(135deg, #3a2156, #24305e); }
+.game-card.ekaki .gc-art { background: linear-gradient(135deg, #1f3b4d, #3b2a4d); }
+.gc-tiers { display: flex; gap: 6px; }
+.gc-tiers span {
+  width: 38px; height: 38px; display: grid; place-items: center; border-radius: 10px; background: var(--c);
+  color: #16121f; font-weight: 800; font-size: 1.2rem; animation: hop 2.4s ease-in-out infinite; animation-delay: calc(var(--i) * .12s);
+}
+.gc-paper {
+  position: relative; width: 150px; height: 96px; background: #fffdf6; border-radius: 10px;
+  transform: rotate(-3deg); box-shadow: 0 10px 24px -10px #000;
+}
+.gc-paper svg { width: 100%; height: 100%; }
+.gc-paper path { fill: none; stroke-width: 5; stroke-linecap: round; stroke-dasharray: 140; stroke-dashoffset: 140; animation: draw-in 3.2s ease-in-out infinite; }
+.gc-paper path:nth-child(2) { animation-delay: .4s; } .gc-paper path:nth-child(3) { animation-delay: .8s; } .gc-paper path:nth-child(4) { animation-delay: 1.2s; }
+@keyframes draw-in { 0% { stroke-dashoffset: 140; } 40%, 85% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: 0; opacity: 0; } }
+.gc-wolf { position: absolute; right: -16px; top: -18px; font-size: 2.2rem; transform: rotate(12deg); filter: drop-shadow(0 4px 6px #0008); }
+.gc-body { padding: 14px 16px 16px; }
+.gc-body h3 { font-size: 1.3rem; }
+.gc-body p { color: var(--muted); font-size: .88rem; line-height: 1.6; margin: 6px 0 10px; }
+.gc-meta { display: flex; gap: 12px; font-size: .78rem; font-weight: 700; color: #d9d6f5; }
+.gc-go {
+  position: absolute; right: 14px; bottom: 14px; font-weight: 800; font-size: .85rem;
+  background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #22101c; padding: 6px 12px; border-radius: 999px;
+}

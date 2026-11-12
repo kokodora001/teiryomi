@@ -413,3 +413,7 @@ input::placeholder { color: #ffffff40; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+.back-link { display: inline-block; color: var(--muted); text-decoration: none; font-weight: 800; font-size: .85rem; padding: 8px 2px 0; }
+.back-link:hover { color: var(--text); }
+.join-row .btn { flex: none; white-space: nowrap; }
