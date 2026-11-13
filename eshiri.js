@@ -9,6 +9,7 @@ import { createStore } from './store.js';
 import {
   esc, toast, genCode, getPid, getName, saveName, pageUrl, hubUrl, setUrlRoom,
   localBanner, avatar, shuffle, confetti, gotoRoom,
+  ROOM_KEY, joinPlayer, followRoom, switchGame, changeGameBtn,
 } from './common.js';
 
 // ---------- 定数 ----------
@@ -164,9 +165,10 @@ async function boot() {
     if (ok) el.classList.remove('show'); else shown = setTimeout(() => el.classList.add('show'), 1500);
   });
   const code = (new URLSearchParams(location.search).get('room') || '').toUpperCase();
-  if (code && sessionStorage.getItem('eshiri.room') === code && S.name) {
+  if (code && sessionStorage.getItem(ROOM_KEY) === code && S.name) {
     const meta = await S.store.get(`rooms/${code}/meta`);
     if (meta?.game === GAME) return enterRoom(code);
+    if (meta) { await gotoRoom(S.store, code); return; }
   }
   renderHome(code);
 }
@@ -241,17 +243,9 @@ async function joinRoom(raw) {
 }
 async function enterRoom(code) {
   S.code = code; S.viewKey = ''; S.phaseSeen = '';
-  sessionStorage.setItem('eshiri.room', code);
+  sessionStorage.setItem(ROOM_KEY, code);
   setUrlRoom(code);
-  const players = (await S.store.get(`rooms/${code}/players`)) || {};
-  const me = players[S.pid];
-  if (!me || !me.name) {
-    const used = Object.values(players).map((p) => p.color);
-    const color = AVATAR_COLORS.find((c) => !used.includes(c)) || AVATAR_COLORS[Object.keys(players).length % AVATAR_COLORS.length];
-    await S.store.set(`rooms/${code}/players/${S.pid}`, { name: S.name, joinedAt: Date.now(), online: true, color });
-  } else {
-    await S.store.update(`rooms/${code}/players/${S.pid}`, { name: S.name, online: true });
-  }
+  await joinPlayer(S.store, code, S.pid, S.name, AVATAR_COLORS);
   S.stopPresence = S.store.presence(`rooms/${code}/players/${S.pid}/online`);
   S.unsub = S.store.on(`rooms/${code}`, onRoom);
   clearInterval(S.tick); S.tick = setInterval(onTick, 250);
@@ -262,7 +256,7 @@ async function leaveRoom() {
   S.unsub?.(); S.unsub = null; S.stopPresence?.(); S.stopPresence = null; clearInterval(S.tick);
   if (phase === 'lobby') await S.store.remove(`rooms/${code}/players/${S.pid}`);
   else await S.store.set(`rooms/${code}/players/${S.pid}/online`, false);
-  sessionStorage.removeItem('eshiri.room');
+  sessionStorage.removeItem(ROOM_KEY);
   S.code = null; S.room = null; setUrlRoom(null);
   renderHome();
 }
@@ -273,9 +267,10 @@ async function leaveRoom() {
 function onRoom(room) {
   if (!room || !room.meta) {
     S.unsub?.(); S.stopPresence?.(); clearInterval(S.tick);
-    sessionStorage.removeItem('eshiri.room'); setUrlRoom(null);
+    sessionStorage.removeItem(ROOM_KEY); setUrlRoom(null);
     S.code = null; S.room = null; toast('部屋が見つかりません'); renderHome(); return;
   }
+  if (followRoom(room, GAME, S.code)) { S.unsub?.(); return; }
   S.room = room;
   hostDuties();
   render();
@@ -442,7 +437,7 @@ function lobbyDyn() {
     </section>
     ${host
       ? `<button class="btn primary big" data-action="start" ${n < 3 ? 'disabled' : ''}>${n < 3 ? `あと${3 - n}人集まったら開始できます` : 'ゲームスタート！'}</button>`
-      : `<div class="waiting">ホストの ${esc(player(h).name)} さんの開始を待っています<span class="dots"></span></div>`}`;
+      : `<div class="waiting">ホストの ${esc(player(h).name)} さんの開始を待っています<span class="dots"></span></div>`}${isHost() ? changeGameBtn() : ''}`;
 }
 
 // ---------- プレイ（自分の作業） ----------
@@ -804,7 +799,7 @@ function resultDyn() {
     return `<div class="host-bar">
       <button class="btn primary big" data-action="start" ${n < 3 ? 'disabled' : ''}>${n < 3 ? '3人以上必要です' : '🔁 もう1ラウンド'}</button>
       <button class="btn ghost wide" data-action="to-lobby">ロビーに戻る（得点リセット）</button>
-    </div>`;
+    ${changeGameBtn()}</div>`;
   }
   return `<div class="waiting">ホストの ${esc(player(hostId()).name)} さんを待っています<span class="dots"></span></div>`;
 }
@@ -827,6 +822,7 @@ async function shareLink() {
 }
 
 const actions = {
+  'change-game': () => { if (confirm('今のゲームを終えて、みんなでロビーに戻りますか？')) return switchGame(S.store, S.code, 'lobby', playerList().map((p) => p.id)); },
   create: createRoom,
   join: (el) => joinRoom(el.dataset.code || document.getElementById('code')?.value),
   'copy-link': copyLink, share: shareLink, leave: leaveRoom,

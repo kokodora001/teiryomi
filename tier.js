@@ -3,7 +3,7 @@
 // =============================================================
 import { createStore, isLocalMode } from './store.js';
 import { PRESETS } from './presets.js';
-import { gotoRoom, hubUrl } from './common.js';
+import { gotoRoom, hubUrl, getName, saveName, ROOM_KEY, joinPlayer, followRoom, switchGame, changeGameBtn } from './common.js';
 
 // ---------- 定数 ----------
 const TIERS = [
@@ -144,7 +144,7 @@ function pickNextSetter(afterId) {
 // =============================================================
 async function boot() {
   S.pid = getPid();
-  S.name = localStorage.getItem('tieryomi.name') || '';
+  S.name = getName();
   try {
     S.store = await createStore();
   } catch (e) {
@@ -160,7 +160,7 @@ async function boot() {
   });
 
   const code = (new URLSearchParams(location.search).get('room') || '').toUpperCase();
-  if (code && sessionStorage.getItem('tieryomi.room') === code && S.name) {
+  if (code && sessionStorage.getItem(ROOM_KEY) === code && S.name) {
     const meta = await S.store.get(`rooms/${code}/meta`);
     if (meta && meta.game && meta.game !== 'tier') { await gotoRoom(S.store, code); return; }
     if (meta) return enterRoom(code);
@@ -225,7 +225,7 @@ function readName() {
   const el = document.getElementById('name');
   const v = (el?.value || '').trim();
   if (!v) { toast('ニックネームを入力してね'); el?.focus(); return null; }
-  S.name = v.slice(0, 10); localStorage.setItem('tieryomi.name', S.name);
+  S.name = v.slice(0, 10); saveName(S.name);
   return S.name;
 }
 
@@ -247,17 +247,9 @@ async function joinRoom(raw) {
 }
 async function enterRoom(code) {
   S.code = code; S.viewKey = ''; S.phaseSeen = '';
-  sessionStorage.setItem('tieryomi.room', code);
+  sessionStorage.setItem(ROOM_KEY, code);
   setUrlRoom(code);
-  const players = (await S.store.get(`rooms/${code}/players`)) || {};
-  const me = players[S.pid];
-  if (!me || !me.name) {
-    const used = Object.values(players).map((p) => p.color);
-    const color = PLAYER_COLORS.find((c) => !used.includes(c)) || PLAYER_COLORS[Object.keys(players).length % PLAYER_COLORS.length];
-    await S.store.set(`rooms/${code}/players/${S.pid}`, { name: S.name, joinedAt: Date.now(), online: true, color });
-  } else {
-    await S.store.update(`rooms/${code}/players/${S.pid}`, { name: S.name, online: true });
-  }
+  await joinPlayer(S.store, code, S.pid, S.name, PLAYER_COLORS);
   S.stopPresence = S.store.presence(`rooms/${code}/players/${S.pid}/online`);
   S.unsub = S.store.on(`rooms/${code}`, onRoom);
 }
@@ -269,7 +261,7 @@ async function leaveRoom() {
   S.stopPresence?.(); S.stopPresence = null;
   if (phase === 'lobby') await S.store.remove(`rooms/${code}/players/${S.pid}`);
   else await S.store.set(`rooms/${code}/players/${S.pid}/online`, false);
-  sessionStorage.removeItem('tieryomi.room');
+  sessionStorage.removeItem(ROOM_KEY);
   S.code = null; S.room = null; setUrlRoom(null);
   renderHome();
 }
@@ -280,10 +272,11 @@ async function leaveRoom() {
 function onRoom(room) {
   if (!room || !room.meta) {
     S.unsub?.(); S.stopPresence?.();
-    sessionStorage.removeItem('tieryomi.room'); setUrlRoom(null);
+    sessionStorage.removeItem(ROOM_KEY); setUrlRoom(null);
     S.code = null; S.room = null;
     toast('部屋が見つかりません'); renderHome(); return;
   }
+  if (followRoom(room, 'tier', S.code)) { S.unsub?.(); return; }
   S.room = room;
   const st = stateOf();
   if (S.phaseSeen === `ranking:${st.round}` && st.phase === 'reveal') S.animateRound = st.round;
@@ -399,7 +392,7 @@ function lobbyDyn() {
     </section>
     ${host
       ? `<button class="btn primary big" data-action="start" ${n < 2 ? 'disabled' : ''}>${n < 2 ? 'あと1人集まったら開始できます' : 'ゲームスタート！'}</button>`
-      : `<div class="waiting">ホストの ${esc(player(h).name)} さんの開始を待っています<span class="dots"></span></div>`}`;
+      : `<div class="waiting">ホストの ${esc(player(h).name)} さんの開始を待っています<span class="dots"></span></div>`}${isHost() ? changeGameBtn() : ''}`;
 }
 async function startGame() {
   if (onlinePlayers().length < 2) return toast('2人以上集まったら始められます');
@@ -858,7 +851,7 @@ function finalView() {
 }
 function finalDyn() {
   return isHost()
-    ? `<div class="host-bar"><button class="btn primary big" data-action="play-again">🔁 同じメンバーでもう一度</button><button class="btn ghost wide" data-action="leave">部屋を出る</button></div>`
+    ? `<div class="host-bar"><button class="btn primary big" data-action="play-again">🔁 同じメンバーでもう一度</button><button class="btn ghost wide" data-action="leave">部屋を出る</button>${changeGameBtn()}</div>`
     : `<div class="waiting">ホストがもう一度遊ぶか決めています<span class="dots"></span></div><div class="host-bar"><button class="btn ghost wide" data-action="leave">部屋を出る</button></div>`;
 }
 async function playAgain() {
@@ -902,6 +895,7 @@ async function shareLink() {
 }
 
 const actions = {
+  'change-game': () => { if (confirm('今のゲームを終えて、みんなでロビーに戻りますか？')) return switchGame(S.store, S.code, 'lobby', playerList().map((p) => p.id)); },
   create: createRoom,
   join: (el) => joinRoom(el.dataset.code || document.getElementById('code')?.value),
   'copy-link': copyLink,

@@ -6,6 +6,7 @@ import { isLocalMode } from './store.js';
 export const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 export const GAMES = {
+  lobby: { page: 'index.html', name: 'ロビー' },
   tier: { page: 'tier.html', name: 'ティアよみ' },
   ekaki: { page: 'ekaki.html', name: '絵描き人狼' },
   eshiri: { page: 'eshiri.html', name: 'えしりとり' },
@@ -29,8 +30,9 @@ export function getPid() {
   if (!p) { p = Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4); sessionStorage.setItem('tieryomi.pid', p); }
   return p;
 }
-export const getName = () => localStorage.getItem('tieryomi.name') || '';
-export const saveName = (n) => localStorage.setItem('tieryomi.name', n);
+// 名前はタブごとに覚える（同じブラウザで複数タブを開いても混ざらない）。新しいタブでは前回の名前を初期値に
+export const getName = () => sessionStorage.getItem('tieryomi.name') || localStorage.getItem('tieryomi.name') || '';
+export const saveName = (n) => { sessionStorage.setItem('tieryomi.name', n); localStorage.setItem('tieryomi.name', n); };
 
 const keepLocal = () => isLocalMode && new URLSearchParams(location.search).has('local');
 
@@ -91,3 +93,45 @@ export async function gotoRoom(store, code) {
   location.href = pageUrl(g.page, code);
   return true;
 }
+
+// ---------- 共通ロビー ----------
+// どのページでも同じ部屋に入り直せるよう、タブごとに部屋コードを覚えておく
+export const ROOM_KEY = 'asobiba.room';
+export const MIN_PLAYERS = { tier: 2, ekaki: 3, eshiri: 3, dots: 2 };
+
+// 部屋に参加（すでにいれば名前とオンラインを更新）。palette があれば色を割り当て直す
+export async function joinPlayer(store, code, pid, name, palette) {
+  const players = (await store.get(`rooms/${code}/players`)) || {};
+  const me = players[pid];
+  const needColor = !!palette && (!me?.color || !palette.includes(me.color));
+  let color = me?.color;
+  if (needColor) {
+    const used = Object.entries(players).filter(([id, p]) => id !== pid && p?.name).map(([, p]) => p.color);
+    color = palette.find((c) => !used.includes(c)) || palette[Object.keys(players).length % palette.length];
+  }
+  const path = `rooms/${code}/players/${pid}`;
+  if (!me || !me.name) await store.set(path, { name, joinedAt: Date.now(), online: true, ...(color ? { color } : {}) });
+  else await store.update(path, { name, online: true, ...(needColor ? { color } : {}) });
+}
+
+// ゲームを切り替える（'lobby' でロビーに戻る）。メンバーはそのまま、得点や盤面はリセット
+export async function switchGame(store, code, game, playerIds) {
+  const upd = {
+    meta: { game, createdAt: Date.now() },
+    state: { phase: 'lobby', round: 0, game: 0 },
+    rounds: null, games: null,
+  };
+  for (const id of playerIds) upd[`players/${id}/color`] = null; // 色は各ゲームで割り当て直す
+  await store.update(`rooms/${code}`, upd);
+}
+
+// 部屋のゲームが自分のページと違ったら、そのゲームのページへ移動する
+export function followRoom(room, game, code) {
+  const g = room?.meta?.game || 'tier';
+  if (g === game) return false;
+  sessionStorage.setItem(ROOM_KEY, code);
+  location.replace(pageUrl((GAMES[g] || GAMES.lobby).page, code));
+  return true;
+}
+
+export const changeGameBtn = () => '<button class="btn ghost wide change-game" data-action="change-game">🎮 ゲームを変える（みんなでロビーへ）</button>';

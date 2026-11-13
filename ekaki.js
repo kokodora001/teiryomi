@@ -6,12 +6,13 @@ import { EKAKI_PRESETS } from './ekaki-presets.js';
 import {
   esc, toast, genCode, getPid, getName, saveName, pageUrl, hubUrl, setUrlRoom,
   localBanner, avatar, shuffle, confetti, gotoRoom,
+  ROOM_KEY, joinPlayer, followRoom, switchGame, changeGameBtn,
 } from './common.js';
 
 // ---------- 定数 ----------
 const GAME = 'ekaki';
 const COLORS = ['#e8384f', '#1c7ed6', '#2f9e44', '#f08c00', '#9c36b5', '#0c8599', '#d6336c', '#5c940d', '#7048e8', '#a0522d'];
-const PTS_WOLF_WIN = 3, PTS_CITIZEN_WIN = 1, PTS_DETECTIVE = 1;
+const PTS_WOLF_WIN = 3, PTS_CITIZEN_WIN = 1, PTS_DETECTIVE = 1, PTS_BLAME = -2;
 const PAPER = '#fffdf6';
 const RES = 1295; // 座標の分解能（base36 2桁）
 const MAX_POINTS = 1200;
@@ -89,6 +90,8 @@ function roundScores(r) {
     if (!o.wolfWin) s[id] = (s[id] || 0) + PTS_CITIZEN_WIN;
     if (r.votes?.[id] === r.wolfId) s[id] = (s[id] || 0) + PTS_DETECTIVE;
   }
+  const culprit = r.blameResult?.target;
+  if (culprit) s[culprit] = (s[culprit] || 0) + PTS_BLAME;
   return s;
 }
 function finishedRounds() {
@@ -109,6 +112,16 @@ function tally(r) {
   return c;
 }
 
+// ---------- 戦犯投票（市民が負けたときだけ） ----------
+const blameNeeded = (r) => !!r?.outcome?.wolfWin && citizens(r).length > 0;
+const citizens = (r) => participants(r).filter((id) => id !== r.wolfId);
+function blameTally(r) {
+  const c = {};
+  for (const [v, t] of Object.entries(r?.blame || {})) if (r.participants?.[v]) c[t] = (c[t] || 0) + 1;
+  return c;
+}
+const fmtPts = (v) => (v > 0 ? `+${v}` : v < 0 ? `−${-v}` : '±0');
+
 // =============================================================
 //  起動・ホーム
 // =============================================================
@@ -125,9 +138,10 @@ async function boot() {
     if (ok) el.classList.remove('show'); else shown = setTimeout(() => el.classList.add('show'), 1500);
   });
   const code = (new URLSearchParams(location.search).get('room') || '').toUpperCase();
-  if (code && sessionStorage.getItem('ekaki.room') === code && S.name) {
+  if (code && sessionStorage.getItem(ROOM_KEY) === code && S.name) {
     const meta = await S.store.get(`rooms/${code}/meta`);
     if (meta?.game === GAME) return enterRoom(code);
+    if (meta) { await gotoRoom(S.store, code); return; }
   }
   renderHome(code);
 }
@@ -146,6 +160,7 @@ function rulesHTML(open = false) {
       <span>🐺 人狼の勝ち <b>人狼 +${PTS_WOLF_WIN}</b></span>
       <span>🧑‍🤝‍🧑 市民の勝ち <b>市民 +${PTS_CITIZEN_WIN}</b></span>
       <span>🔍 人狼に投票した市民 <b>+${PTS_DETECTIVE}</b></span>
+      <span>😇 市民が負けたら戦犯投票 <b>最多票の人 ${PTS_BLAME}</b></span>
     </div>
     <p class="muted small">同票で最多が複数いるときは人狼の逃げ切りです。</p>
   </details>`;
@@ -205,17 +220,9 @@ async function joinRoom(raw) {
 }
 async function enterRoom(code) {
   S.code = code; S.viewKey = ''; S.phaseSeen = '';
-  sessionStorage.setItem('ekaki.room', code);
+  sessionStorage.setItem(ROOM_KEY, code);
   setUrlRoom(code);
-  const players = (await S.store.get(`rooms/${code}/players`)) || {};
-  const me = players[S.pid];
-  if (!me || !me.name) {
-    const used = Object.values(players).map((p) => p.color);
-    const color = COLORS.find((c) => !used.includes(c)) || COLORS[Object.keys(players).length % COLORS.length];
-    await S.store.set(`rooms/${code}/players/${S.pid}`, { name: S.name, joinedAt: Date.now(), online: true, color });
-  } else {
-    await S.store.update(`rooms/${code}/players/${S.pid}`, { name: S.name, online: true });
-  }
+  await joinPlayer(S.store, code, S.pid, S.name, COLORS);
   S.stopPresence = S.store.presence(`rooms/${code}/players/${S.pid}/online`);
   S.unsub = S.store.on(`rooms/${code}`, onRoom);
 }
@@ -225,7 +232,7 @@ async function leaveRoom() {
   S.unsub?.(); S.unsub = null; S.stopPresence?.(); S.stopPresence = null;
   if (phase === 'lobby') await S.store.remove(`rooms/${code}/players/${S.pid}`);
   else await S.store.set(`rooms/${code}/players/${S.pid}/online`, false);
-  sessionStorage.removeItem('ekaki.room');
+  sessionStorage.removeItem(ROOM_KEY);
   S.code = null; S.room = null; setUrlRoom(null); document.title = '絵描き人狼 — あそびば';
   renderHome();
 }
@@ -236,9 +243,10 @@ async function leaveRoom() {
 function onRoom(room) {
   if (!room || !room.meta) {
     S.unsub?.(); S.stopPresence?.();
-    sessionStorage.removeItem('ekaki.room'); setUrlRoom(null);
+    sessionStorage.removeItem(ROOM_KEY); setUrlRoom(null);
     S.code = null; S.room = null; toast('部屋が見つかりません'); renderHome(); return;
   }
+  if (followRoom(room, GAME, S.code)) { S.unsub?.(); return; }
   S.room = room;
   const st = stateOf();
   const ph = `${st.phase}:${st.round}`;
@@ -265,6 +273,9 @@ function hostDuties() {
   } else if (st.phase === 'vote') {
     const need = participants(r).filter((id) => player(id).online);
     if (need.length && need.every((id) => r.votes?.[id])) hostDo(key, finalizeVote);
+  } else if (st.phase === 'result' && blameNeeded(r) && !r.blameResult) {
+    const need = participants(r).filter((id) => player(id).online);
+    if (need.length && need.every((id) => r.blame?.[id])) hostDo(`blame:${st.round}`, finalizeBlame);
   }
 }
 
@@ -353,6 +364,10 @@ function updateDynamic() {
   setHTML(document.getElementById('legend'), legendHTML());
   setHTML(document.getElementById('peek'), peekHTML());
   setHTML(document.getElementById('dyn'), dynHTML());
+  if (stateOf().phase === 'result') {
+    setHTML(document.getElementById('blame'), blameHTML());
+    setHTML(document.getElementById('scores'), roundScoresHTML());
+  }
   paintMain();
   if (stateOf().phase === 'final') paintHistory();
 }
@@ -423,7 +438,7 @@ function lobbyDyn() {
     </section>
     ${host
       ? `<button class="btn primary big" data-action="start" ${n < need ? 'disabled' : ''}>${n < need ? `あと${need - n}人集まったら開始できます` : 'ゲームスタート！'}</button>`
-      : `<div class="waiting">ホストの ${esc(player(h).name)} さんの開始を待っています<span class="dots"></span></div>`}`;
+      : `<div class="waiting">ホストの ${esc(player(h).name)} さんの開始を待っています<span class="dots"></span></div>`}${isHost() ? changeGameBtn() : ''}`;
 }
 
 // ---------- お題決め（出題者モード） ----------
@@ -875,12 +890,12 @@ function reasonText(r) {
 function resultView() {
   const r = curRound(), o = r.outcome, wolf = player(r.wolfId), role = myRole();
   const meWin = role === 'wolf' ? o.wolfWin : role === 'citizen' ? !o.wolfWin : null;
-  const sc = roundScores(r);
   return `<section class="result-banner ${o.wolfWin ? 'wolf-win' : 'citizen-win'}">
       <div class="rb-icon">${o.wolfWin ? '🐺' : '🎉'}</div>
       <div class="rb-title">${o.wolfWin ? '人狼の勝ち！' : '市民の勝ち！'}</div>
       <p>${reasonText(r)}</p>
       ${meWin === true ? '<div class="rb-me win">あなたの勝ち！</div>' : meWin === false ? '<div class="rb-me lose">あなたの負け…</div>' : ''}
+      ${blameNeeded(r) ? '<div class="rb-blame">⚖️ このあと戦犯投票があります（下へ）</div>' : ''}
     </section>
     <section class="answer-row">
       <div class="ans-box"><small>人狼</small><div>${avatar(wolf, 'sm')} <b>${esc(wolf.name)}</b></div></div>
@@ -890,14 +905,69 @@ function resultView() {
     ${canvasBlock()}
     <div class="center"><button class="btn small" data-action="replay">▶ 描いた順に再生</button></div>
     ${voteResultHTML(r)}
-    <h3 class="sec-title">今回の得点</h3>
+    <div id="blame"></div>
+    <div id="scores"></div>
+    <div id="dyn"></div>`;
+}
+function roundScoresHTML() {
+  const r = curRound(), sc = roundScores(r), culprit = r.blameResult?.target;
+  const pending = blameNeeded(r) && !r.blameResult;
+  return `<h3 class="sec-title">今回の得点${pending ? ' <small>（戦犯投票のあとに確定）</small>' : ''}</h3>
     <section class="card"><ul class="standings">${participants(r).map((id) => ({ id, v: sc[id] || 0 })).sort((a, b) => b.v - a.v).map((x) => {
       const p = player(x.id);
-      return `<li class="${x.id === S.pid ? 'me' : ''}">${avatar(p, 'sm')}<span class="nm">${esc(p.name)}${x.id === r.wolfId ? ' 🐺' : ''}${r.votes?.[x.id] === r.wolfId && x.id !== r.wolfId ? ' <span class="tag det">🔍名探偵</span>' : ''}</span><b>+${x.v}<small>pt</small></b></li>`;
+      return `<li class="${x.id === S.pid ? 'me' : ''}">${avatar(p, 'sm')}<span class="nm">${esc(p.name)}${x.id === r.wolfId ? ' 🐺' : ''}${r.votes?.[x.id] === r.wolfId && x.id !== r.wolfId ? ' <span class="tag det">🔍名探偵</span>' : ''}${x.id === culprit ? ' <span class="tag culprit">😇戦犯</span>' : ''}</span><b class="${x.v < 0 ? 'neg' : ''}">${fmtPts(x.v)}<small>pt</small></b></li>`;
     }).join('')}</ul></section>
     <h3 class="sec-title">現在の順位</h3>
-    ${standingsHTML()}
-    <div id="dyn"></div>`;
+    ${standingsHTML()}`;
+}
+function blameHTML() {
+  const r = curRound();
+  if (!blameNeeded(r)) return '';
+  const parts = participants(r), cits = citizens(r);
+  if (r.blameResult) {
+    const c = blameTally(r), max = Math.max(0, ...Object.values(c)), t = r.blameResult.target;
+    const rows = [...cits, 'none'].map((id) => ({ id, n: c[id] || 0, voters: Object.entries(r.blame || {}).filter(([v, x]) => x === id && r.participants?.[v]).map(([v]) => v) }))
+      .filter((x) => x.n > 0).sort((a, b) => b.n - a.n);
+    return `<section class="card blame-card done">
+      <h3>⚖️ 戦犯投票の結果</h3>
+      <div class="blame-verdict ${t ? 'guilty' : 'free'}">${t ? `${avatar(player(t), 'sm')}<span><b>${esc(player(t).name)}</b> さんが戦犯に…！</span><em>${PTS_BLAME}点</em>` : '<span>🙆 戦犯なし！ 減点はありません</span>'}</div>
+      <ul class="vres">${rows.map((x) => {
+        const isNone = x.id === 'none', p = isNone ? null : player(x.id);
+        return `<li class="${x.n === max ? 'top' : ''}">${isNone ? '<span class="avatar sm none-av">🙆</span>' : avatar(p, 'sm')}<span class="nm">${isNone ? '戦犯なし' : esc(p.name)}</span>
+          <span class="vbar"><i style="width:${max ? (x.n / max) * 100 : 0}%;background:${isNone ? '#5fe08a' : p.color}"></i></span><b>${x.n}</b>
+          <span class="voters">${x.voters.map((v) => avatar(player(v), 'xs')).join('')}</span></li>`;
+      }).join('')}</ul>
+      ${!t && rows.length > 1 && rows[0].n === rows[1].n ? '<p class="muted tiny center">同票のため減点なし</p>' : ''}
+    </section>`;
+  }
+  const mine = r.blame?.[S.pid], canVote = !!r.participants?.[S.pid];
+  const done = parts.filter((id) => r.blame?.[id]).length;
+  return `<section class="card blame-card">
+    <h3>⚖️ 戦犯投票</h3>
+    <p class="muted small">市民が負けてしまった…足を引っぱったのは誰？<br>最多票の人は <b class="neg">${PTS_BLAME}点</b>。同票や「戦犯なし」が最多なら減点なし。</p>
+    ${canVote ? `<div class="vote-grid">${cits.filter((id) => id !== S.pid).map((id) => {
+      const p = player(id);
+      return `<button class="vote-btn ${mine === id ? 'on' : ''}" data-action="blame" data-id="${id}" style="--pc:${p.color}">${avatar(p)}<span>${esc(p.name)}</span>${mine === id ? '<em>✓</em>' : ''}</button>`;
+    }).join('')}
+      <button class="vote-btn none ${mine === 'none' ? 'on' : ''}" data-action="blame" data-id="none" style="--pc:#5fe08a"><span class="avatar none-av">🙆</span><span>戦犯なし</span>${mine === 'none' ? '<em>✓</em>' : ''}</button>
+    </div>
+    ${mine ? '<p class="muted tiny center">全員がそろうまで変更できます</p>' : ''}` : '<p class="muted small center">観戦中のため投票はできません</p>'}
+    <div class="progress"><i style="width:${(done / parts.length) * 100}%"></i></div>
+    <div class="ready-row">${parts.map((id) => { const p = player(id); return `<span class="rdy ${r.blame?.[id] ? 'ok' : ''} ${p.online ? '' : 'off'}">${avatar(p, 'sm')}${esc(p.name)}</span>`; }).join('')}</div>
+    ${isHost() && done > 0 && done < parts.length ? '<div class="center"><button class="btn small ghost" data-action="force-blame">未投票の人を待たずに締め切る</button></div>' : ''}
+  </section>`;
+}
+async function voteBlame(id) {
+  const r = curRound();
+  if (stateOf().phase !== 'result' || !blameNeeded(r) || r.blameResult || id === S.pid) return;
+  await S.store.set(`${roundPath()}/blame/${S.pid}`, id);
+}
+async function finalizeBlame() {
+  const r = curRound(); if (!blameNeeded(r) || r.blameResult) return;
+  const c = blameTally(r), max = Math.max(0, ...Object.values(c));
+  const top = Object.keys(c).filter((k) => c[k] === max);
+  const target = max > 0 && top.length === 1 && top[0] !== 'none' ? top[0] : '';
+  await S.store.set(`${roundPath()}/blameResult`, { target, at: Date.now() });
 }
 function standingsHTML() {
   const tot = totals();
@@ -908,12 +978,14 @@ function standingsHTML() {
   }).join('')}</ol></section>`;
 }
 function resultDyn() {
+  const r = curRound();
+  if (blameNeeded(r) && !r.blameResult) return `<div class="waiting">戦犯投票の結果を待っています<span class="dots"></span></div>`;
   if (isHost()) {
     const n = onlinePlayers().length, need = minPlayers();
     return `<div class="host-bar">
       <button class="btn primary big" data-action="next-round" ${n < need ? 'disabled' : ''}>${n < need ? `${need}人以上必要です` : '次のゲームへ'}${settings().mode === 'gm' && n >= need ? `<small>次の出題者：${esc(player(nextGm(curRound().gmId)).name)} さん</small>` : ''}</button>
       <button class="btn ghost wide" data-action="end-game">ここで終了して最終結果を見る</button>
-    </div>`;
+    ${changeGameBtn()}</div>`;
   }
   return `<div class="waiting">ホストの ${esc(player(hostId()).name)} さんを待っています<span class="dots"></span></div>`;
 }
@@ -943,9 +1015,10 @@ function finalView() {
   const podium = [ps[1], ps[0], ps[2]].filter(Boolean);
   const rounds = finishedRounds();
   const stat = {};
-  const add = (id, k) => { (stat[id] ||= { det: 0, wolfWin: 0, wolf: 0 })[k]++; };
+  const add = (id, k) => { (stat[id] ||= { det: 0, wolfWin: 0, wolf: 0, blamed: 0 })[k]++; };
   for (const r of rounds) {
     add(r.wolfId, 'wolf'); if (r.outcome.wolfWin) add(r.wolfId, 'wolfWin');
+    if (r.blameResult?.target) add(r.blameResult.target, 'blamed');
     for (const [v, t] of Object.entries(r.votes || {})) if (t === r.wolfId && v !== r.wolfId) add(v, 'det');
   }
   const awards = [];
@@ -956,6 +1029,7 @@ function finalView() {
   };
   best('det', '🔍', '名探偵', (v) => `人狼を指名 ${v}回`);
   best('wolfWin', '🎭', '名優', (v) => `人狼で勝利 ${v}回`);
+  best('blamed', '😇', '戦犯', (v) => `戦犯に選ばれた ${v}回`);
   const cWins = rounds.filter((r) => !r.outcome.wolfWin).length;
 
   return `<section class="final-head">
@@ -985,7 +1059,7 @@ function paintHistory() {
 }
 function finalDyn() {
   return isHost()
-    ? `<div class="host-bar"><button class="btn primary big" data-action="play-again">🔁 同じメンバーでもう一度</button><button class="btn ghost wide" data-action="leave">部屋を出る</button></div>`
+    ? `<div class="host-bar"><button class="btn primary big" data-action="play-again">🔁 同じメンバーでもう一度</button><button class="btn ghost wide" data-action="leave">部屋を出る</button>${changeGameBtn()}</div>`
     : `<div class="waiting">ホストがもう一度遊ぶか決めています<span class="dots"></span></div><div class="host-bar"><button class="btn ghost wide" data-action="leave">部屋を出る</button></div>`;
 }
 async function endGame() {
@@ -1010,6 +1084,7 @@ async function shareLink() {
 }
 
 const actions = {
+  'change-game': () => { if (confirm('今のゲームを終えて、みんなでロビーに戻りますか？')) return switchGame(S.store, S.code, 'lobby', playerList().map((p) => p.id)); },
   create: createRoom,
   join: (el) => joinRoom(el.dataset.code || document.getElementById('code')?.value),
   'copy-link': copyLink, share: shareLink, leave: leaveRoom,
@@ -1034,6 +1109,8 @@ const actions = {
   commit: commitStroke, redo, 'skip-turn': skipTurn,
   highlight: (el) => { S.replay = null; S.highlight = S.highlight === el.dataset.id ? null : el.dataset.id; updateDynamic(); },
   vote: (el) => vote(el.dataset.id), 'force-vote': forceVote,
+  blame: (el) => voteBlame(el.dataset.id),
+  'force-blame': () => { if (confirm('未投票の人を待たずに締め切りますか？')) return finalizeBlame(); },
   'submit-guess': submitGuess, judge: (el) => judge(el.dataset.ok === '1'), forfeit,
   replay: startReplay,
   'next-round': nextRound, 'end-game': endGame, 'play-again': playAgain,
