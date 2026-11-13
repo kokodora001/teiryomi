@@ -17,6 +17,8 @@ GitHub Pages（画面）＋ Firebase Realtime Database（通信）で動きま�
 | `ekaki.html` / `ekaki.js` / `ekaki.css` / `ekaki-presets.js` | 絵描き人狼（ekaki-presets.js はお題の一覧） |
 | `style.css` | 共通の見た目 |
 | `common.js` | 共通の部品 |
+| `version.js` | バージョン番号（ゲーム選択画面の下に表示。更新したら番号を上げる） |
+| `loader.js` | 読み込み係。番号が変わると古いキャッシュを使わず新しいファイルを読み込む |
 | `store.js` | 通信レイヤー（Firebase / ローカルテストモードを切り替え） |
 | `firebase-config.js` | **Firebaseの設定を貼る場所** |
 | `database.rules.json` | Firebaseのセキュリティルール |

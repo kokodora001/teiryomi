@@ -666,38 +666,56 @@ async function skipRound() {
 function revealView() {
   const n = stateOf().round, r = curRound(), setter = player(r.setterId), ans = r.subs[r.setterId];
   const animate = S.animateRound === n && !S.revealDone[n];
-  const mine = r.setterId !== S.pid ? r.subs?.[S.pid] : null;
-  const myRes = mine ? scoreGuess(ans, mine) : null;
+  // 予想した人（自分を先頭、あとは参加順）
+  const guessers = playerList().filter((p) => p.id !== r.setterId && r.subs?.[p.id])
+    .sort((a, b) => (b.id === S.pid) - (a.id === S.pid));
+  const res = Object.fromEntries(guessers.map((p) => [p.id, scoreGuess(ans, r.subs[p.id])]));
+  const sym = { exact: '◎', near: '○', miss: '×' };
   return `<section class="topic-card">
       <div class="topic-by">${avatar(setter, 'sm')}<span>${esc(setter.name)} さんの正解は…</span></div>
       <h2 class="topic">${esc(r.topic)}</h2>
     </section>
-    <div class="board answer ${animate ? 'animating' : ''}" id="answer">
-      <div class="tiers">${TIERS.map((t, ti) => {
-        const i = ans.indexOf(ti);
-        let guess = '';
-        if (mine) {
-          const gi = mine.indexOf(ti), m = myRes.marks[gi];
-          guess = `<span class="my-guess ${m}" title="あなたの予想">あなた：${esc(r.items[gi])} <em>${m === 'exact' ? '◎' : m === 'near' ? '○' : '×'}</em></span>`;
-        }
-        return `<div class="tier" data-tier="${ti}" style="--c:${t.color}">
-          <div class="tier-label">${t.label}</div>
-          <div class="tier-slot"><div class="flip ${animate ? '' : 'shown'}">
-            <div class="flip-back">?</div>
-            <div class="flip-front"><span class="chip static">${esc(r.items[i])}</span>${guess}</div>
-          </div></div>
-        </div>`;
-      }).join('')}</div>
+    <div class="answer ${animate ? 'animating' : ''}" id="answer">
+      <div class="rv-scroll">
+        <table class="rv">
+          <thead><tr>
+            <th class="rv-corner" colspan="2">正解</th>
+            ${guessers.map((p) => `<th class="rv-p ${p.id === S.pid ? 'me' : ''}">${avatar(p, 'sm')}<small>${p.id === S.pid ? 'あなた' : esc(p.name)}</small></th>`).join('')}
+          </tr></thead>
+          <tbody>
+            ${TIERS.map((t, ti) => {
+              const i = ans.indexOf(ti);
+              return `<tr class="rv-row ${animate ? '' : 'shown'}" data-tier="${ti}" style="--c:${t.color}">
+                <th class="rv-tl">${t.label}</th>
+                <td class="rv-ans"><div class="flip ${animate ? '' : 'shown'}">
+                  <div class="flip-back">?</div>
+                  <div class="flip-front"><span class="chip static">${esc(r.items[i])}</span></div>
+                </div></td>
+                ${guessers.map((p) => { const m = res[p.id].marks[i]; return `<td class="rv-m ${m} ${p.id === S.pid ? 'me' : ''}"><span>${sym[m]}</span></td>`; }).join('')}
+              </tr>`;
+            }).join('')}
+            ${guessers.length ? `<tr class="rv-total">
+              <th class="rv-tl-total" colspan="2">得点</th>
+              ${guessers.map((p) => `<td class="${p.id === S.pid ? 'me' : ''}"><b>+${res[p.id].pts}</b>${res[p.id].perfect ? '<i>★</i>' : ''}</td>`).join('')}
+            </tr>` : ''}
+          </tbody>
+        </table>
+      </div>
+      ${guessers.length ? '' : '<p class="muted small center">今回は予想した人がいませんでした</p>'}
+      <p class="legend rv-legend muted small center"><span>◎ ぴったり +${PTS_EXACT}</span><span>○ 1段ズレ +${PTS_NEAR}</span><span>× ハズレ</span><span>★ 全部ぴったり +${PTS_PERFECT}</span></p>
       ${animate ? '<button class="skip-anim" data-action="skip-anim">スキップ ›</button>' : ''}
     </div>
-    <div id="results" class="results ${animate ? 'pending' : ''}">${resultsHTML(r)}</div>
+    <div id="results" class="results ${animate ? 'pending' : ''}">
+      ${guessers.length ? '<p class="scroll-hint">▼ 下にスクロールすると、みんながどこに置いたか見られます</p>' : ''}
+      ${resultsHTML(r)}
+    </div>
     <div id="dyn" class="${animate ? 'pending' : ''}">${dynHTML()}</div>`;
 }
 function resultsHTML(r) {
   const results = roundResults(r);
-  let html = '<h3 class="sec-title">みんなの予想</h3>';
-  if (!results.length) html += '<section class="card center"><p class="muted">今回は予想した人がいませんでした</p></section>';
-  else {
+  let html = '';
+  if (results.length) {
+    html += '<h3 class="sec-title">みんなの置き方</h3>';
     const best = results[0].pts;
     html += `<div class="rgrid">${results.map((res, idx) => {
       const p = player(res.id), g = r.subs[res.id], sync = Math.round((res.pts / MAX_PTS) * 100);
@@ -712,7 +730,6 @@ function resultsHTML(r) {
       </div>`;
     }).join('')}</div>`;
   }
-  html += `<p class="legend muted small center">◎ ぴったり +${PTS_EXACT}　○ 1段ズレ +${PTS_NEAR}　★ 全部ぴったり +${PTS_PERFECT}</p>`;
   html += `<h3 class="sec-title">現在の順位</h3>${standingsHTML()}`;
   return html;
 }
@@ -741,12 +758,12 @@ function mountReveal() {
   const n = stateOf().round;
   const el = document.getElementById('answer');
   if (!el?.classList.contains('animating')) { celebrate(n); return; }
-  const rows = [...el.querySelectorAll('.tier')].reverse(); // D → S の順にめくる
+  const rows = [...el.querySelectorAll('.rv-row')].reverse(); // D → S の順にめくる
   let k = 0;
   S.revealTimer = setInterval(() => {
     if (k < rows.length) {
       rows[k].querySelector('.flip').classList.add('shown');
-      rows[k].classList.add('pop');
+      rows[k].classList.add('shown', 'pop');
       k++;
     } else finishReveal();
   }, 800);
@@ -755,7 +772,7 @@ function finishReveal() {
   clearInterval(S.revealTimer);
   const n = stateOf().round;
   S.revealDone[n] = true;
-  document.querySelectorAll('#answer .flip').forEach((f) => f.classList.add('shown'));
+  document.querySelectorAll('#answer .flip, #answer .rv-row').forEach((f) => f.classList.add('shown'));
   document.getElementById('answer')?.classList.remove('animating');
   document.querySelector('.skip-anim')?.remove();
   document.getElementById('results')?.classList.remove('pending');
