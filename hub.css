@@ -42,3 +42,6 @@
   position: absolute; right: 14px; bottom: 14px; font-weight: 800; font-size: .85rem;
   background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #22101c; padding: 6px 12px; border-radius: 999px;
 }
+
+.hub-foot { display: flex; justify-content: center; align-items: center; gap: 10px; margin: 28px 0 8px; font-size: .78rem; color: var(--muted); }
+.hub-foot .ver { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-weight: 800; color: #d9d6f5; background: #ffffff12; border: 1px solid var(--card-b); padding: 3px 10px; border-radius: 99px; }

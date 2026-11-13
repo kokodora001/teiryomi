@@ -3,6 +3,7 @@
 // =============================================================
 import { createStore } from './store.js';
 import { esc, toast, pageUrl, localBanner, gotoRoom } from './common.js';
+import { VERSION, UPDATED } from './version.js';
 
 const $app = document.getElementById('app');
 let store = null;
@@ -56,6 +57,7 @@ function render() {
       </div>
       <p class="muted small">友達から届いた4文字のコードを入力すると、そのゲームの部屋に移動します</p>
     </section>
+    <footer class="hub-foot"><span class="ver">ver ${VERSION}</span><span>${UPDATED} 更新</span></footer>
   </div>`;
 }
 
