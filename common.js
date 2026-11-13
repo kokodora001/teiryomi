@@ -9,6 +9,7 @@ export const GAMES = {
   tier: { page: 'tier.html', name: 'ティアよみ' },
   ekaki: { page: 'ekaki.html', name: '絵描き人狼' },
   eshiri: { page: 'eshiri.html', name: 'えしりとり' },
+  dots: { page: 'dots.html', name: 'ドット＆ボックス' },
 };
 
 export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));

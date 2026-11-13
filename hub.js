@@ -48,7 +48,6 @@ function render() {
         <span class="gc-go">あそぶ ›</span>
       </a>
       <a class="game-card eshiri" href="${esc(pageUrl('eshiri.html'))}">
-        <span class="gc-new">NEW</span>
         <div class="gc-art"><div class="gc-shiri">
           <span class="k">り</span><i>→</i><span class="p">🍎</span><i>→</i><span class="q">？</span><i>→</i><span class="k">と</span>
         </div></div>
@@ -56,6 +55,21 @@ function render() {
           <h3>えしりとり</h3>
           <p>絵だけでつなぐ伝言しりとり。「りんご」のつもりが「トマト」に見えて…ズレていく答え合わせが最高！</p>
           <div class="gc-meta"><span>👥 3〜10人</span><span>⏱ 1ラウンド 約8分</span></div>
+        </div>
+        <span class="gc-go">あそぶ ›</span>
+      </a>
+      <a class="game-card dots" href="${esc(pageUrl('dots.html'))}">
+        <span class="gc-new">NEW</span>
+        <div class="gc-art"><svg class="gc-dots" viewBox="0 0 160 100" aria-hidden="true">
+          <rect x="30" y="20" width="30" height="30" fill="#ff5a8a66"/><rect x="90" y="50" width="30" height="30" fill="#4dc3ff66"/>
+          <path d="M30 20H60V50H30Z M90 50H120V80H90Z" stroke="#fff" stroke-width="5" fill="none" stroke-linecap="round"/>
+          <path class="gc-dl" d="M60 20H90" stroke="#ffc145" stroke-width="5" stroke-linecap="round"/>
+          ${[20, 50, 80].map((y) => [30, 60, 90, 120].map((x) => `<circle cx="${x}" cy="${y}" r="5" fill="#fff"/>`).join('')).join('')}
+        </svg></div>
+        <div class="gc-body">
+          <h3>ドット＆ボックス</h3>
+          <p>順番に線を1本ずつ。四角を閉じたら自分の陣地で、もう1手！ 3辺目を引かされるのは誰だ？</p>
+          <div class="gc-meta"><span>👥 2〜6人</span><span>⏱ 1戦 約5分</span></div>
         </div>
         <span class="gc-go">あそぶ ›</span>
       </a>

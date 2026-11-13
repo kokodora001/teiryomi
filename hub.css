@@ -56,3 +56,9 @@
 .gc-shiri span:nth-of-type(2) { animation-delay: .15s; } .gc-shiri span:nth-of-type(3) { animation-delay: .3s; color: #e8384f; } .gc-shiri span:nth-of-type(4) { animation-delay: .45s; }
 .gc-shiri i { font-style: normal; color: #ffffff88; font-weight: 800; }
 .gc-new { position: absolute; top: 12px; left: 12px; z-index: 2; background: #ffd84d; color: #3a2a00; font-weight: 800; font-size: .7rem; padding: 3px 9px; border-radius: 99px; letter-spacing: .05em; }
+
+.game-card.dots { animation-delay: .3s; }
+.game-card.dots .gc-art { background: linear-gradient(135deg, #2a2350, #123a4a); }
+.gc-dots { width: 170px; height: 106px; }
+.gc-dl { stroke-dasharray: 30; stroke-dashoffset: 30; animation: gc-dl 2.4s ease-in-out infinite; }
+@keyframes gc-dl { 0%, 15% { stroke-dashoffset: 30; } 45%, 100% { stroke-dashoffset: 0; } }
