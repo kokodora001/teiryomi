@@ -1,0 +1,132 @@
+/* =============================================================
+   えしりとり — 追加スタイル（style.css の上に重ねる）
+   ============================================================= */
+.mt { margin-top: 16px; }
+.tag.ok { background: #5fe08a33; color: #9cf0b6; }
+.tag.wip { background: #ffffff14; color: var(--muted); }
+
+/* ---------- logo ---------- */
+.es-logo h1 { background: linear-gradient(90deg, #6fdc8c, #5aa9ff, #b98bff); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.es-chain { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 12px; }
+.es-chain span {
+  width: 48px; height: 48px; display: grid; place-items: center; border-radius: 14px; background: #fffdf6; color: #1b1630;
+  font-weight: 800; font-size: 1.5rem; box-shadow: 0 8px 18px -8px #000; animation: hop 2.4s ease-in-out infinite;
+}
+.es-chain span:nth-of-type(2) { animation-delay: .2s; transform: rotate(-4deg); }
+.es-chain span:nth-of-type(3) { animation-delay: .4s; }
+.es-chain b { color: var(--muted); }
+.es-example { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 10px 0; font-size: .85rem; }
+.es-example span { padding: 4px 10px; border-radius: 99px; font-weight: 800; }
+.es-example .w { background: #fffdf6; color: #1b1630; }
+.es-example .g { background: #5fe08a26; color: #9cf0b6; border: 1px dashed #5fe08a77; }
+.es-example .g.ng { background: #ff5a6e22; color: #ffb0ba; border-color: #ff5a6e77; }
+.es-example i { font-style: normal; color: var(--muted); font-size: .78rem; }
+
+/* ---------- timer ---------- */
+.es-timer {
+  position: sticky; top: 6px; z-index: 20; height: 30px; border-radius: 99px; overflow: hidden; margin: 4px 0 12px;
+  background: #00000066; border: 1px solid var(--card-b); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+}
+.es-timer.none { display: none; }
+.es-timer i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, #5aa9ff, #6fdc8c); transition: width .25s linear; }
+.es-timer span { position: relative; display: block; text-align: center; line-height: 28px; font-weight: 800; font-size: .85rem; text-shadow: 0 1px 2px #000a; }
+.es-timer.warn i { background: linear-gradient(90deg, #ff5a6e, #ff9f45); }
+.es-timer.warn span { animation: pulse 1s ease-in-out infinite; }
+@keyframes pulse { 50% { transform: scale(1.06); } }
+
+/* ---------- step ---------- */
+.step-head { text-align: center; margin: 4px 0 10px; }
+.step-head h2 { font-size: 1.25rem; margin-top: 4px; }
+.sh-from { display: inline-flex; align-items: center; gap: 6px; font-size: .82rem; color: var(--muted); font-weight: 700; }
+.sh-chain { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: center; font-size: .88rem; }
+.sh-chain .g { background: #ffffff14; padding: 3px 10px; border-radius: 99px; font-weight: 800; }
+.sh-chain b { color: #ffd84d; font-size: 1.1rem; }
+.sh-chain i { font-style: normal; color: var(--muted); }
+.paper {
+  display: block; width: 100%; aspect-ratio: 1 / 1; border-radius: 16px; background: #fffdf6;
+  box-shadow: 0 2px 0 #e4dccb, 0 18px 40px -18px #000; touch-action: pan-y;
+}
+.big-paper { max-width: 520px; margin: 0 auto; }
+#pad { touch-action: none; cursor: crosshair; }
+.mini-paper { max-width: 200px; margin: 12px auto 4px; }
+.guess-box { margin-top: 14px; }
+.guess-box input, .word-box input { font-size: 1.1rem; }
+.word-box { margin: 0 0 10px; }
+.word-box input { text-align: center; font-weight: 800; }
+.word-box p { text-align: center; margin: 6px 0 0; min-height: 1.3em; }
+.word-box p.ok { color: var(--exact); } .word-box p.ng { color: #ff9aa6; }
+.done-card { padding: 22px 16px; }
+.done-card .big-check { margin: 0 auto 8px; }
+
+/* ---------- tools ---------- */
+.tools { max-width: 520px; margin: 10px auto 12px; }
+.palette { display: grid; grid-template-columns: repeat(10, 1fr); gap: 6px; }
+.sw {
+  aspect-ratio: 1; border-radius: 50%; border: 2px solid #ffffff33; background: var(--sw); cursor: pointer; padding: 0;
+  transition: transform .12s, box-shadow .12s; font-size: .9rem; display: grid; place-items: center;
+}
+.sw.on { transform: scale(1.15); box-shadow: 0 0 0 3px #fff; border-color: #fff; }
+.sw.eraser { background: #fffdf6; }
+.tool-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.widths { display: flex; gap: 6px; flex: 1; }
+.wd {
+  width: 40px; height: 40px; border-radius: 12px; border: 1.5px solid var(--card-b); background: rgba(0, 0, 0, .25);
+  display: grid; place-items: center; cursor: pointer; padding: 0;
+}
+.wd i { width: var(--d); height: var(--d); border-radius: 50%; background: var(--sw); border: 1px solid #ffffff44; }
+.wd.on { border-color: #fff; background: #ffffff1c; }
+
+/* ---------- reveal ---------- */
+.rv-head { text-align: center; margin: 4px 0 12px; }
+.rv-head h2 { display: inline-flex; align-items: center; gap: 8px; font-size: 1.2rem; }
+.rv-dots { display: flex; justify-content: center; gap: 6px; margin-bottom: 8px; }
+.rv-dots i { width: 8px; height: 8px; border-radius: 50%; background: #ffffff26; }
+.rv-dots i.past { background: #ffffff66; }
+.rv-dots i.cur { background: #ffd84d; width: 22px; border-radius: 99px; }
+.rv-list { display: flex; flex-direction: column; gap: 14px; max-width: 520px; margin: 0 auto; }
+.rv-card { animation: slide-up .45s backwards; }
+.rv-guess {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px; text-align: center;
+  background: var(--card); border: 1px solid var(--card-b); border-radius: 16px; padding: 12px; margin-bottom: 10px;
+}
+.rv-guess .gw { font-size: 1.35rem; color: #fff; }
+.rv-guess.skip { color: var(--muted); }
+.truth-row { flex-basis: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+.truth { font-size: .85rem; color: var(--muted); }
+.truth b { color: #ffd84d; }
+.mark { font: inherit; border: none; background: none; cursor: pointer; font-size: 1.6rem; display: inline-flex; flex-direction: column; align-items: center; line-height: 1; animation: pop-in .4s .2s backwards; }
+.mark small { font-size: .58rem; color: var(--muted); font-weight: 700; margin-top: 3px; }
+.mark:disabled { cursor: default; }
+.rv-pic-head { display: flex; align-items: center; gap: 6px; font-size: .82rem; color: var(--muted); font-weight: 700; margin-bottom: 6px; }
+.rv-pic-head b { color: #ffd84d; }
+.rv-pic-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; }
+.rv-pic-foot .word { font-weight: 800; font-size: 1.15rem; }
+.rv-pic-foot .word.hide { color: var(--muted); letter-spacing: .2em; }
+.rv-skip { text-align: center; color: var(--muted); padding: 16px; background: var(--card); border-radius: 16px; }
+.like {
+  font: inherit; display: inline-flex; align-items: center; gap: 4px; padding: 6px 12px; border-radius: 99px; cursor: pointer;
+  border: 1.5px solid var(--card-b); background: rgba(0, 0, 0, .25); color: var(--text); font-size: 1rem; transition: transform .12s;
+}
+.like b { font-size: .85rem; min-width: .6em; }
+.like.on { border-color: #ff6b9a88; background: #ff6b9a22; }
+.like:active { transform: scale(1.15); }
+.like:disabled { opacity: .5; cursor: default; }
+.chain-sum { max-width: 520px; margin: 16px auto 0; animation: slide-up .5s backwards; }
+.chain-sum .g.ok { background: #5fe08a26; }
+.rv-bar { position: sticky; bottom: 10px; z-index: 10; }
+.rv-bar .btn.primary { box-shadow: 0 10px 30px -6px #000, 0 10px 28px -10px rgba(255, 90, 138, .75); }
+
+/* ---------- result ---------- */
+.gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-top: 8px; }
+.gal { margin: 0; background: var(--card); border: 1px solid var(--card-b); border-radius: 16px; padding: 8px; }
+.gal .paper { border-radius: 10px; box-shadow: none; }
+.gal figcaption { display: flex; flex-direction: column; gap: 2px; padding: 6px 2px 0; font-size: .72rem; color: var(--muted); }
+.gal figcaption b { font-size: .95rem; color: var(--text); }
+.standings .tiny { margin-right: 6px; }
+
+@media (max-width: 380px) {
+  .palette { grid-template-columns: repeat(5, 1fr); }
+}
+.mark:disabled { opacity: 1; color: inherit; }
+.rv-pic .paper { max-width: 400px; margin: 0 auto; }
+.rv-pic-head, .rv-pic-foot { max-width: 400px; margin-left: auto; margin-right: auto; }

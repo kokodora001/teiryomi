@@ -47,6 +47,18 @@ function render() {
         </div>
         <span class="gc-go">あそぶ ›</span>
       </a>
+      <a class="game-card eshiri" href="${esc(pageUrl('eshiri.html'))}">
+        <span class="gc-new">NEW</span>
+        <div class="gc-art"><div class="gc-shiri">
+          <span class="k">り</span><i>→</i><span class="p">🍎</span><i>→</i><span class="q">？</span><i>→</i><span class="k">と</span>
+        </div></div>
+        <div class="gc-body">
+          <h3>えしりとり</h3>
+          <p>絵だけでつなぐ伝言しりとり。「りんご」のつもりが「トマト」に見えて…ズレていく答え合わせが最高！</p>
+          <div class="gc-meta"><span>👥 3〜10人</span><span>⏱ 1ラウンド 約8分</span></div>
+        </div>
+        <span class="gc-go">あそぶ ›</span>
+      </a>
     </div>
 
     <h2 class="hub-sec">部屋コードで参加</h2>

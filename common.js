@@ -8,6 +8,7 @@ export const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 export const GAMES = {
   tier: { page: 'tier.html', name: 'ティアよみ' },
   ekaki: { page: 'ekaki.html', name: '絵描き人狼' },
+  eshiri: { page: 'eshiri.html', name: 'えしりとり' },
 };
 
 export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));

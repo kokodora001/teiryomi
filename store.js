@@ -24,8 +24,12 @@ async function createFirebaseStore() {
   const app = initializeApp(firebaseConfig);
   const db = F.getDatabase(app);
   const ref = (p) => F.ref(db, p);
+  // 端末ごとの時計のズレを補正（制限時間を全員でそろえるため）
+  let offset = 0;
+  F.onValue(ref('.info/serverTimeOffset'), (s) => { offset = s.val() || 0; });
 
   return {
+    now() { return Date.now() + offset; },
     async get(p) { return (await F.get(ref(p))).val(); },
     set(p, v) { return F.set(ref(p), v); },
     update(p, obj) { return F.update(ref(p), obj); },
@@ -85,6 +89,7 @@ function createLocalStore() {
   window.addEventListener('storage', (e) => { if (e.key === KEY) notify(); });
 
   return {
+    now() { return Date.now(); },
     async get(p) { const v = getAt(read(), p); return v == null ? null : clone(v); },
     async set(p, v) { write(setAt(read(), p, v)); },
     async update(p, obj) {
