@@ -37,6 +37,11 @@ const CARDS = [
     art: () => `<div class="gc-shiri"><span class="k">り</span><i>→</i><span class="p">🍎</span><i>→</i><span class="q">？</span><i>→</i><span class="k">と</span></div>`,
   },
   {
+    id: 'dengon', name: 'お絵かき伝言', players: '3〜10人', time: '1ラウンド 約8分',
+    desc: 'お題を絵に、絵を答えに。伝言していくうちに「寝坊したサンタ」が何に化ける？',
+    art: () => `<div class="gc-shiri gc-dengon"><span>📝</span><i>→</i><span>🖼</span><i>→</i><span>💬</span><i>→</i><span>🖼</span></div>`,
+  },
+  {
     id: 'dots', name: 'ドット＆ボックス', players: '2〜6人', time: '1戦 約5分',
     desc: '順番に線を1本ずつ。四角を閉じたら自分の陣地で、もう1手！ 3辺目を引かされるのは誰だ？',
     art: () => `<svg class="gc-dots" viewBox="0 0 160 100" aria-hidden="true">
@@ -45,6 +50,11 @@ const CARDS = [
         <path class="gc-dl" d="M60 20H90" stroke="#ffc145" stroke-width="5" stroke-linecap="round"/>
         ${[20, 50, 80].map((y) => [30, 60, 90, 120].map((x) => `<circle cx="${x}" cy="${y}" r="5" fill="#fff"/>`).join('')).join('')}
       </svg>`,
+  },
+  {
+    id: 'jintori', name: '同時陣取り', players: '2〜6人', time: '1戦 約5分',
+    desc: '全員が同時にマスを選ぶ陣取り。同じマスを選んだら岩に！ 読み合いと囲い込みで陣地を広げろ',
+    art: () => `<div class="gc-jt">${'aab.b a#.bb aa★.b'.replace(/ /g, '').split('').map((c) => `<i class="${c === 'a' ? 'pa' : c === 'b' ? 'pb' : c === '#' ? 'rk' : c === '★' ? 'st' : ''}">${c === '★' ? '★' : ''}</i>`).join('')}</div>`,
   },
 ];
 function cardLink(c) {

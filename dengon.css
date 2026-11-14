@@ -1,0 +1,37 @@
+/* =============================================================
+   お絵かき伝言 — 追加スタイル（style.css・eshiri.css の上に重ねる）
+   ============================================================= */
+.dg-logo h1 { background: linear-gradient(90deg, #ffb347, #ff6b9a, #b98bff); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.dg-chain { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 12px; }
+.dg-chain span {
+  width: 50px; height: 50px; display: grid; place-items: center; border-radius: 14px; background: #fffdf6;
+  font-size: 1.6rem; box-shadow: 0 8px 18px -8px #000; animation: hop 2.4s ease-in-out infinite;
+}
+.dg-chain span:nth-of-type(2) { animation-delay: .2s; transform: rotate(-4deg); }
+.dg-chain span:nth-of-type(3) { animation-delay: .4s; }
+.dg-chain b { color: var(--muted); }
+
+.kind-badge { display: inline-block; font-weight: 800; font-size: .8rem; padding: 4px 12px; border-radius: 99px; margin-bottom: 6px; }
+.kind-badge.write { background: #ffb34733; color: #ffd49a; }
+.kind-badge.draw { background: #4dc3ff2e; color: #a9e3ff; }
+.kind-badge.guess { background: #b98bff33; color: #dcc6ff; }
+.es-timer.k-write i { background: linear-gradient(90deg, #ffb347, #ffd84d); }
+.es-timer.k-guess i { background: linear-gradient(90deg, #b98bff, #ff6b9a); }
+.es-timer.warn i { background: linear-gradient(90deg, #ff5a6e, #ff9f45) !important; }
+.step-head .prompt { font-size: 1.7rem; color: #ffd84d; margin: 6px 0 2px; word-break: break-word; }
+#text { font-size: 1.1rem; text-align: center; font-weight: 800; }
+
+.rv-text {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px; text-align: center;
+  background: var(--card); border: 1px solid var(--card-b); border-radius: 16px; padding: 14px 12px;
+}
+.rv-text b { font-size: 1.35rem; color: #fff; word-break: break-word; }
+.rv-text.write { background: linear-gradient(160deg, #ffb34722, #ffffff08); border-color: #ffb34755; }
+.rv-text.write b { color: #ffd84d; flex-basis: 100%; font-size: 1.6rem; }
+.rv-text.guess { border-color: #b98bff55; }
+.chain-sum.perfect { border-color: #ffd84d; box-shadow: 0 0 0 3px #ffd84d22; }
+.sum-row { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; margin: 10px 0 6px; }
+.sum-row div { background: rgba(0, 0, 0, .25); border-radius: 12px; padding: 10px; text-align: center; min-width: 0; }
+.sum-row small { display: block; color: var(--muted); font-size: .7rem; font-weight: 700; }
+.sum-row b { font-size: 1.1rem; word-break: break-word; }
+.sum-row i { font-style: normal; color: var(--muted); font-weight: 800; }

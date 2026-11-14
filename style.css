@@ -465,3 +465,16 @@ input::placeholder { color: #ffffff40; }
 @keyframes bob { 50% { transform: translateY(4px); } }
 .rv-legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px 12px; }
 .rv-legend span { white-space: nowrap; }
+
+/* ---------- 誤選択の防止（スマホで長押し・お絵描き中に画面全体が青く選択されるのを防ぐ） ---------- */
+html, body, #app {
+  -webkit-user-select: none; user-select: none;
+  -webkit-touch-callout: none;          /* iOS の長押しメニュー（コピー・保存）を出さない */
+}
+input, textarea, [contenteditable="true"] {
+  -webkit-user-select: text; user-select: text;
+  -webkit-touch-callout: default;
+}
+canvas, svg, img { -webkit-user-drag: none; -webkit-touch-callout: none; }
+::selection { background: transparent; }
+input::selection, textarea::selection { background: #4dc3ff66; }

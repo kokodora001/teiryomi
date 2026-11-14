@@ -3,6 +3,20 @@
 // =============================================================
 import { isLocalMode } from './store.js';
 
+// ---------- 誤選択の防止 ----------
+// スマホで長押ししたり、お絵描き中に指がはみ出したりすると、ブラウザが「文字選択」と判断して
+// 画面全体が青く選択されることがある。入力欄以外では選択・長押しメニューを止め、
+// もし選択されてしまっても次に触れたときに解除する。（このファイルを読み込む全ページに効く）
+const isEditable = (el) => !!el?.closest?.('input, textarea, [contenteditable="true"]');
+document.addEventListener('selectstart', (e) => { if (!isEditable(e.target)) e.preventDefault(); });
+document.addEventListener('contextmenu', (e) => { if (!isEditable(e.target)) e.preventDefault(); });
+document.addEventListener('dragstart', (e) => { if (!isEditable(e.target)) e.preventDefault(); });
+document.addEventListener('pointerdown', (e) => {
+  if (isEditable(e.target)) return;
+  const sel = window.getSelection?.();
+  if (sel && sel.rangeCount && !isEditable(document.activeElement)) sel.removeAllRanges();
+}, true);
+
 export const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 export const GAMES = {
@@ -11,6 +25,8 @@ export const GAMES = {
   ekaki: { page: 'ekaki.html', name: '絵描き人狼' },
   eshiri: { page: 'eshiri.html', name: 'えしりとり' },
   dots: { page: 'dots.html', name: 'ドット＆ボックス' },
+  dengon: { page: 'dengon.html', name: 'お絵かき伝言' },
+  jintori: { page: 'jintori.html', name: '同時陣取り' },
 };
 
 export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -97,7 +113,7 @@ export async function gotoRoom(store, code) {
 // ---------- 共通ロビー ----------
 // どのページでも同じ部屋に入り直せるよう、タブごとに部屋コードを覚えておく
 export const ROOM_KEY = 'asobiba.room';
-export const MIN_PLAYERS = { tier: 2, ekaki: 3, eshiri: 3, dots: 2 };
+export const MIN_PLAYERS = { tier: 2, ekaki: 3, eshiri: 3, dots: 2, dengon: 3, jintori: 2 };
 
 // 部屋に参加（すでにいれば名前とオンラインを更新）。palette があれば色を割り当て直す
 export async function joinPlayer(store, code, pid, name, palette) {

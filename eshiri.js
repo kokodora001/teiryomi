@@ -11,6 +11,7 @@ import {
   localBanner, avatar, shuffle, confetti, gotoRoom,
   ROOM_KEY, joinPlayer, followRoom, switchGame, changeGameBtn,
 } from './common.js';
+import { buildAssign } from './drawkit.js';
 
 // ---------- 定数 ----------
 const GAME = 'eshiri';
@@ -103,8 +104,10 @@ const settings = () => ({ timer: S.room?.meta?.timer ?? 90, len: S.room?.meta?.l
 const mod = (a, n) => ((a % n) + n) % n;
 const entry = (r, c, k) => r?.chains?.[c]?.[k] || null;
 const N = (r) => r?.order?.length || 0;
-const workerOf = (r, c, k) => r.order[mod(c + k, N(r))];       // 列cのステップkを担当する人
-const myChain = (r, k) => mod(r.order.indexOf(S.pid) - k, N(r)); // ステップkで自分が担当する列
+// 列cのステップkを担当する人（毎回ランダム。自分の列・一度関わった列は回ってこない）
+const workerOf = (r, c, k) => (r.assign ? r.assign[k][c] : r.order[mod(c + k, N(r))]);
+// ステップkで自分が担当する列
+const myChain = (r, k) => (r.assign ? (r.assign[k] || []).indexOf(S.pid) : mod(r.order.indexOf(S.pid) - k, N(r)));
 const inRound = (r) => !!r && r.order?.includes(S.pid);
 
 // 列cのステップkで「何から始まる言葉を描くか」
@@ -178,7 +181,7 @@ function rulesHTML(open = false) {
     <summary>あそびかた</summary>
     <ol>
       <li>全員に「<b>〇</b>から始まる言葉」のお題が出る。言葉を決めて、<b>絵だけ</b>で描こう</li>
-      <li>絵は隣の人へ回る。届いた絵が<b>何に見えるか</b>答えて、<br>その<b>最後の文字から始まる言葉</b>を描いて次へ渡す</li>
+      <li>絵は<b>ランダムなだれか</b>へ回る（自分の列や一度関わった列は回ってこない）。届いた絵が<b>何に見えるか</b>答えて、<br>その<b>最後の文字から始まる言葉</b>を描いて次へ渡す</li>
       <li>全員分回ったら、1列ずつ答え合わせ！</li>
     </ol>
     <div class="es-example">
@@ -319,12 +322,13 @@ async function startRound() {
   const ids = shuffle(onlinePlayers().map((p) => p.id));
   if (ids.length < 3) return toast('3人以上いないと始められません');
   const { timer, len } = settings();
-  const L = len ? Math.min(len, ids.length) : ids.length;
+  const L = len ? Math.min(len, ids.length - 1) : ids.length - 1; // 絵の枚数（最後の解読まで全員別の人）
+  const assign = buildAssign(ids.length, L + 1).map((row) => row.map((i) => ids[i]));
   const starts = shuffle(START_KANA).slice(0, ids.length);
   const n = stateOf().round + 1;
   await S.store.update(roomPath(), {
     state: { phase: 'play', round: n, step: 0, deadline: timer ? S.store.now() + timer * 1000 : 0 },
-    [`rounds/${rk(n)}`]: { order: ids, L, starts, startedAt: Date.now() },
+    [`rounds/${rk(n)}`]: { order: ids, L, starts, assign, startedAt: Date.now() },
   });
 }
 
@@ -423,7 +427,7 @@ function lobbyView() {
 }
 function lobbyDyn() {
   const ps = playerList(), host = isHost(), { timer, len } = settings(), n = onlinePlayers().length, h = hostId();
-  const L = len ? Math.min(len, n) : n;
+  const L = Math.max(0, len ? Math.min(len, n - 1) : n - 1);
   return `<section class="card">
       <h3>参加メンバー <small>${n}人</small></h3>
       <ul class="plist">${ps.map((p) => `<li class="${p.online ? '' : 'off'}">${avatar(p)}<span class="nm">${esc(p.name)}${p.id === S.pid ? ' <small class="muted">(あなた)</small>' : ''}</span>${p.id === h ? '<span class="tag host">ホスト</span>' : ''}${p.online ? '' : '<span class="muted tiny">切断中</span>'}</li>`).join('')}</ul>
