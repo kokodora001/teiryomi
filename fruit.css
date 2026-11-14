@@ -1,0 +1,42 @@
+/* =============================================================
+   フルーツまぜまぜ — 追加スタイル
+   ============================================================= */
+.avatar.xs { --s: 18px; font-size: 10px; }
+.fr-logo h1 { background: linear-gradient(90deg, #ff8597, #ffd08a, #7fd38f); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.fr-mark { display: inline-flex; align-items: flex-end; gap: 2px; margin-bottom: 8px; }
+.fr-mark span { animation: hop 2.4s ease-in-out infinite; animation-delay: calc(var(--i) * .12s); }
+.fi { display: inline-block; vertical-align: middle; }
+.fr-ladder { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 2px; margin: 10px 0 4px; }
+.fr-ladder i { font-style: normal; color: var(--muted); font-size: .7rem; }
+
+/* 相手の箱（ミニ） */
+.rivals { display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 8px; scrollbar-width: none; }
+.rivals::-webkit-scrollbar { display: none; }
+.rival { flex: none; width: 74px; background: var(--card); border: 1px solid var(--card-b); border-radius: 12px; padding: 5px; }
+.rival.big { width: calc(50% - 4px); }
+.rivals:has(.big) { flex-wrap: wrap; overflow: visible; }
+.rival .mini { display: block; width: 100%; aspect-ratio: 400 / 560; border-radius: 6px; }
+.rv-name { display: flex; align-items: center; gap: 4px; margin-top: 4px; font-size: .68rem; font-weight: 800; min-width: 0; }
+.rv-name span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rv-score { display: flex; align-items: center; gap: 3px; font-size: .78rem; }
+.rv-score b { color: var(--accent2); }
+.rv-score em { font-style: normal; font-size: .6rem; background: #ffffff1c; color: var(--muted); border-radius: 6px; padding: 0 4px; margin-left: auto; }
+
+/* 自分の箱 */
+.fr-top { display: flex; align-items: center; gap: 8px; margin: 4px 0 8px; }
+.hud { display: flex; gap: 6px; flex: 1; }
+.hud-box { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: var(--card); border: 1px solid var(--card-b); border-radius: 12px; padding: 4px; min-height: 58px; }
+.hud-box small { font-size: .62rem; color: var(--muted); font-weight: 800; }
+.hud-box b { font-size: 1.4rem; color: #ffd84d; line-height: 1.2; }
+.clock { font-weight: 800; font-size: .85rem; white-space: nowrap; }
+.clock:empty { display: none; }
+.fr-wrap { max-width: 420px; margin: 0 auto; border-radius: 16px; overflow: hidden; border: 4px solid #c98a3a; box-shadow: 0 16px 40px -18px #000; }
+.fr-board { display: block; width: 100%; aspect-ratio: 400 / 560; touch-action: none; cursor: pointer; }
+
+/* 結果 */
+.fr-best { margin-right: 4px; }
+.fr-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; margin-top: 8px; }
+.fr-gallery figure { margin: 0; background: var(--card); border: 1px solid var(--card-b); border-radius: 12px; padding: 6px; }
+.fr-gallery .mini { display: block; width: 100%; aspect-ratio: 400 / 560; border-radius: 6px; }
+.fr-gallery figcaption { text-align: center; font-size: .75rem; font-weight: 800; margin-top: 4px; }
+.trophy .fi { width: 72px; height: 72px; }

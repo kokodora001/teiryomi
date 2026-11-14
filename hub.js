@@ -56,6 +56,11 @@ const CARDS = [
     desc: '全員が同時にマスを選ぶ陣取り。同じマスを選んだら岩に！ 読み合いと囲い込みで陣地を広げろ',
     art: () => `<div class="gc-jt">${'aab.b a#.bb aa★.b'.replace(/ /g, '').split('').map((c) => `<i class="${c === 'a' ? 'pa' : c === 'b' ? 'pb' : c === '#' ? 'rk' : c === '★' ? 'st' : ''}">${c === '★' ? '★' : ''}</i>`).join('')}</div>`,
   },
+  {
+    id: 'fruit', name: 'フルーツまぜまぜ', players: '1〜10人', time: '1戦 約5〜15分',
+    desc: '同じ果物をくっつけて進化させる落ち物パズル。みんな同時にスタートして、スイカを作った人が勝ち！',
+    art: () => `<div class="gc-fruit">${[['#e8384f', 10], ['#ff9f1c', 16], ['#e63946', 22], ['#a5d86a', 28], ['#2f9e44', 34]].map(([c, r], i) => `<i style="--c:${c};--r:${r}px;--i:${i}"></i>`).join('')}</div>`,
+  },
 ];
 function cardLink(c) {
   return `<a class="game-card g-${c.id}" href="${esc(pageUrl(c.id + '.html'))}">

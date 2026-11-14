@@ -9,7 +9,7 @@
   var me = document.currentScript;
   var entry = me.dataset.entry;
   var css = (me.dataset.css || '').split(',').filter(Boolean);
-  var FILES = ['store.js', 'common.js', 'firebase-config.js', 'version.js', 'presets.js', 'ekaki-presets.js', 'tier.js', 'ekaki.js', 'eshiri.js', 'dots.js', 'dengon.js', 'drawkit.js', 'jintori.js', 'jintori-rules.js', 'hub.js'];
+  var FILES = ['store.js', 'common.js', 'firebase-config.js', 'version.js', 'presets.js', 'ekaki-presets.js', 'tier.js', 'ekaki.js', 'eshiri.js', 'dots.js', 'dengon.js', 'drawkit.js', 'jintori.js', 'jintori-rules.js', 'fruit.js', 'hub.js'];
   var abs = function (f) { return new URL(f, location.href).href; };
 
   fetch('version.js', { cache: 'no-store' })

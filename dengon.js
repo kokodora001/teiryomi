@@ -226,6 +226,12 @@ function onRoom(room) {
 function onTick() {
   if (!S.room) return;
   updateTimer();
+  const st = stateOf();
+  if (st.phase === 'reveal') {
+    const k = `${st.round}:${st.rv?.c}:${st.rv?.i}`;
+    if (S.rvSeen?.key !== k) S.rvSeen = { key: k, at: Date.now() };
+    setHTML(document.getElementById('dyn'), dynHTML());
+  }
   autoSubmitIfLate();
   hostDuties();
 }
@@ -235,13 +241,22 @@ async function hostDo(key, fn) {
   try { await fn(); } catch (e) { console.error(e); S.hostBusy = ''; }
 }
 function stepDone(r, k) { for (let c = 0; c < N(r); c++) if (!entry(r, c, k)) return false; return true; }
+// 進行役：ふだんはホスト。ホストのスマホが止まっていても（別アプリに切り替え等）、
+// ほかの人が少し遅れて代わりに進めるので、ゲームが止まらない
+function backupDelay() {
+  const i = onlinePlayers().findIndex((p) => p.id === S.pid);
+  return i <= 0 ? 0 : 4000 + i * 2000;
+}
 function hostDuties() {
-  if (!isHost()) return;
   const st = stateOf(), r = curRound();
   if (st.phase !== 'play' || !r) return;
-  const k = st.step;
-  if (stepDone(r, k)) { hostDo(`adv:${st.round}:${k}`, () => advance(k)); return; }
-  if (st.deadline && S.store.now() > st.deadline + 8000) hostDo(`fill:${st.round}:${k}`, () => fillMissing(k));
+  const k = st.step, key = `${st.round}:${k}`, wait = backupDelay();
+  if (stepDone(r, k)) {
+    S.doneSeen ||= {}; S.doneSeen[key] ||= Date.now();
+    if (Date.now() - S.doneSeen[key] >= wait) hostDo(`adv:${key}`, () => advance(k));
+    return;
+  }
+  if (st.deadline && S.store.now() > st.deadline + 3000 + wait) hostDo(`fill:${key}`, () => fillMissing(k));
 }
 const timerFor = (k) => settings()[kindOf(k)];
 async function advance(k) {
@@ -249,9 +264,9 @@ async function advance(k) {
   if (st.phase !== 'play' || st.step !== k) return;
   if (k + 1 <= r.S) {
     const t = timerFor(k + 1);
-    await S.store.update(roomPath(), { 'state/step': k + 1, 'state/deadline': t ? S.store.now() + t * 1000 : 0 });
+    await S.store.update(roomPath(), { 'state/step': k + 1, 'state/deadline': t ? S.store.now() + t * 1000 : 0, [`rounds/${rk(st.round)}/drafts`]: null });
   } else {
-    await S.store.update(roomPath(), { 'state/phase': 'reveal', 'state/rv': { c: 0, i: 0 }, 'state/deadline': 0 });
+    await S.store.update(roomPath(), { 'state/phase': 'reveal', 'state/rv': { c: 0, i: 0 }, 'state/deadline': 0, [`rounds/${rk(st.round)}/drafts`]: null });
   }
 }
 async function fillMissing(k) {
@@ -259,11 +274,13 @@ async function fillMissing(k) {
   const upd = {};
   for (let c = 0; c < N(r); c++) {
     if (entry(r, c, k)) continue;
-    const by = workerOf(r, c, k);
-    // お題が書かれなかった列は、ランダムなお題で続ける
-    upd[`rounds/${rk(st.round)}/chains/${c}/${k}`] = k === 0
-      ? { by, text: SUGGEST[Math.floor(Math.random() * SUGGEST.length)], auto: true }
-      : { by, skip: true };
+    const by = workerOf(r, c, k), dr = r.drafts?.[`${c}_${k}`];
+    let e;
+    if (dr && dr.by === by && kindOf(k) === 'draw') e = { by, d: dr.d || '', src: dr.src ?? lastText(r, c, k), late: true }; // 描いたところまでを提出
+    else if (dr && dr.by === by && (dr.text || '').trim()) e = { by, text: dr.text.trim().slice(0, 30), late: true };
+    else if (k === 0) e = { by, text: SUGGEST[Math.floor(Math.random() * SUGGEST.length)], auto: true }; // お題が空ならおまかせ
+    else e = { by, skip: true };
+    upd[`rounds/${rk(st.round)}/chains/${c}/${k}`] = e;
   }
   if (Object.keys(upd).length) await S.store.update(roomPath(), upd);
 }
@@ -406,7 +423,28 @@ function ensurePlay(r, k) {
   S.play = saved || { key, text: '', strokes: [], color: 0, width: 1 };
   S.drawing = null;
 }
-function saveDraft() { try { sessionStorage.setItem('dengon.draft', JSON.stringify(S.play)); } catch {} }
+function saveDraft() { try { sessionStorage.setItem('dengon.draft', JSON.stringify(S.play)); } catch {} syncDraft(); }
+// ---------- 下書きの同期 ----------
+// 描いた絵・書いた文字を部屋にも保存しておく。スマホが止まって時間切れになっても、
+// 進行役がこの下書きを代わりに提出する（＝そこまで描いた絵が自動で提出される）
+const withCurrentStroke = () => (S.drawing?.pts?.length ? [...S.play.strokes, S.drawing] : S.play.strokes);
+let draftTimer = null;
+function syncDraft(now = false) {
+  clearTimeout(draftTimer);
+  const run = () => {
+    const st = stateOf(), r = curRound();
+    if (!S.play || st.phase !== 'play' || !inRound(r)) return;
+    const k = st.step, c = myChain(r, k);
+    if (c < 0 || entry(r, c, k) || S.play.key !== `${S.code}:${st.round}:${k}`) return;
+    const v = kindOf(k) === 'draw'
+      ? { by: S.pid, d: encDrawing(withCurrentStroke()), src: lastText(r, c, k) }
+      : { by: S.pid, text: (S.play.text || '').slice(0, 30) };
+    S.store.set(`${roundPath()}/drafts/${c}_${k}`, v).catch(() => {});
+  };
+  if (now) run(); else draftTimer = setTimeout(run, 600);
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden) syncDraft(true); });
+window.addEventListener('pagehide', () => syncDraft(true));
 function timerHTML(kind) { return `<div class="es-timer k-${kind}" id="timer"><i></i><span></span></div>`; }
 function updateTimer() {
   const el = document.getElementById('timer'); if (!el) return;
@@ -543,10 +581,11 @@ function autoSubmitIfLate() {
   const key = `${st.round}:${k}`; if (S.autoSent === key) return;
   S.autoSent = key;
   const sub = subState(r, k);
-  if (sub === 'none') S.store.set(`${roundPath()}/chains/${myChain(r, k)}/${k}`, { by: S.pid, skip: true });
-  else if (sub === 'draw') submitDraw(true);
-  else submitText(true);
-  toast('時間切れ！ 今の状態で提出しました');
+  if (S.drawing?.pts?.length) { S.play.strokes.push(S.drawing); S.drawing = null; } // 描いている途中の線も含める
+  const p = sub === 'none' ? S.store.set(`${roundPath()}/chains/${myChain(r, k)}/${k}`, { by: S.pid, skip: true })
+    : sub === 'draw' ? submitDraw(true) : submitText(true);
+  Promise.resolve(p).then(() => toast('時間切れ！ 今の状態で提出しました'))
+    .catch(() => { S.autoSent = ''; }); // 失敗したら次のチェックでやり直す
 }
 async function forceNext() {
   if (!confirm('まだ提出していない人を飛ばして次へ進みますか？')) return;
@@ -620,7 +659,9 @@ function revealDyn() {
     return `<div class="host-bar rv-bar"><button class="btn primary big" data-action="rv-next">${label}</button>
       ${!last ? '<button class="btn ghost wide" data-action="rv-skip">答え合わせを飛ばして結果へ</button>' : ''}</div>`;
   }
-  return `<div class="waiting">ホストの ${esc(player(hostId()).name)} さんがめくっています<span class="dots"></span><br><span class="small">気に入った絵には🤍をタップ！</span></div>`;
+  const stuck = Date.now() - (S.rvSeen?.at || Date.now()) > 20000;
+  return `<div class="waiting">ホストの ${esc(player(hostId()).name)} さんがめくっています<span class="dots"></span><br><span class="small">気に入った絵には🤍をタップ！</span></div>
+    ${stuck ? '<div class="center"><button class="btn small ghost" data-action="rv-next">ホストの反応がないので代わりにめくる ▶</button></div>' : ''}`;
 }
 async function rvNext() {
   const st = stateOf(), r = curRound(); let { c, i } = st.rv;
