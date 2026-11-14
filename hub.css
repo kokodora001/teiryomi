@@ -109,3 +109,9 @@
 .gc-fruit { display: flex; align-items: flex-end; gap: 4px; }
 .gc-fruit i { width: calc(var(--r) * 2); height: calc(var(--r) * 2); border-radius: 50%; background: radial-gradient(circle at 35% 30%, #ffffffaa, var(--c) 45%); animation: hop 2.4s ease-in-out infinite; animation-delay: calc(var(--i) * .12s); }
 .pick-card.g-fruit .gc-art > * { transform: scale(.7); }
+
+.game-card.g-sudoku .gc-art, .pick-card.g-sudoku .gc-art { background: linear-gradient(135deg, #1f2f5a, #3a2456); }
+.gc-su { display: grid; grid-template-columns: repeat(4, 22px); gap: 3px; }
+.gc-su i { width: 22px; height: 22px; border-radius: 5px; background: #fffdf6; color: #1b1630; font-style: normal; font-weight: 800; font-size: .8rem; display: grid; place-items: center; }
+.gc-su i.n { color: #1c7ed6; animation: hop 2.4s ease-in-out infinite; animation-delay: calc(var(--i) * .08s); }
+.pick-card.g-sudoku .gc-art > * { transform: scale(.75); }

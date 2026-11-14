@@ -28,6 +28,7 @@ export const GAMES = {
   dengon: { page: 'dengon.html', name: 'お絵かき伝言' },
   jintori: { page: 'jintori.html', name: '同時陣取り' },
   fruit: { page: 'fruit.html', name: 'フルーツまぜまぜ' },
+  sudoku: { page: 'sudoku.html', name: 'ナンプレバトル' },
 };
 
 export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -114,7 +115,7 @@ export async function gotoRoom(store, code) {
 // ---------- 共通ロビー ----------
 // どのページでも同じ部屋に入り直せるよう、タブごとに部屋コードを覚えておく
 export const ROOM_KEY = 'asobiba.room';
-export const MIN_PLAYERS = { tier: 2, ekaki: 3, eshiri: 3, dots: 2, dengon: 3, jintori: 2, fruit: 1 };
+export const MIN_PLAYERS = { tier: 2, ekaki: 3, eshiri: 3, dots: 2, dengon: 3, jintori: 2, fruit: 1, sudoku: 1 };
 
 // 部屋に参加（すでにいれば名前とオンラインを更新）。palette があれば色を割り当て直す
 export async function joinPlayer(store, code, pid, name, palette) {

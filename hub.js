@@ -61,6 +61,11 @@ const CARDS = [
     desc: '同じ果物をくっつけて進化させる落ち物パズル。みんな同時にスタートして、スイカを作った人が勝ち！',
     art: () => `<div class="gc-fruit">${[['#e8384f', 10], ['#ff9f1c', 16], ['#e63946', 22], ['#a5d86a', 28], ['#2f9e44', 34]].map(([c, r], i) => `<i style="--c:${c};--r:${r}px;--i:${i}"></i>`).join('')}</div>`,
   },
+  {
+    id: 'sudoku', name: 'ナンプレバトル', players: '1〜10人', time: '1戦 約5〜15分',
+    desc: '全員に同じナンプレが同時に配られる早解き対戦。ミスするたびにペナルティがどんどん重くなる！',
+    art: () => `<div class="gc-su">${'5.3..7.6.19.5..98..'.slice(0, 16).split('').map((c, i) => `<i class="${c === '.' ? '' : 'n'}" style="--i:${i}">${c === '.' ? '' : c}</i>`).join('')}</div>`,
+  },
 ];
 function cardLink(c) {
   return `<a class="game-card g-${c.id}" href="${esc(pageUrl(c.id + '.html'))}">
