@@ -66,6 +66,11 @@ const CARDS = [
     desc: '全員に同じナンプレが同時に配られる早解き対戦。ミスするたびにペナルティがどんどん重くなる！',
     art: () => `<div class="gc-su">${'5.3..7.6.19.5..98..'.slice(0, 16).split('').map((c, i) => `<i class="${c === '.' ? '' : 'n'}" style="--i:${i}">${c === '.' ? '' : c}</i>`).join('')}</div>`,
   },
+  {
+    id: 'uno', name: 'ラストワン', players: '2〜10人', time: '1戦 約5〜10分',
+    desc: '色か数字をそろえて出していくUNO風カードゲーム。残り1枚で「ラスト1！」、言い忘れたら指摘されて2枚追加！',
+    art: () => `<div class="gc-uno">${[['#ef4b5f', '7'], ['#2a2340', '+4'], ['#3b82f6', '⇄'], ['#f7b928', '2']].map(([c, t], i) => `<i style="--c:${c};--i:${i}">${t}</i>`).join('')}</div>`,
+  },
 ];
 function cardLink(c) {
   return `<a class="game-card g-${c.id}" href="${esc(pageUrl(c.id + '.html'))}">

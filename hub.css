@@ -115,3 +115,12 @@
 .gc-su i { width: 22px; height: 22px; border-radius: 5px; background: #fffdf6; color: #1b1630; font-style: normal; font-weight: 800; font-size: .8rem; display: grid; place-items: center; }
 .gc-su i.n { color: #1c7ed6; animation: hop 2.4s ease-in-out infinite; animation-delay: calc(var(--i) * .08s); }
 .pick-card.g-sudoku .gc-art > * { transform: scale(.75); }
+
+.game-card.g-uno .gc-art, .pick-card.g-uno .gc-art { background: radial-gradient(ellipse at center, #1f5a46, #163a33 70%); }
+.gc-uno { display: flex; }
+.gc-uno i {
+  width: 44px; height: 64px; margin: 0 -6px; border-radius: 8px; border: 3px solid #fffdf6; background: var(--c); color: #fff; font-style: normal;
+  font-weight: 900; font-size: 1.2rem; display: grid; place-items: center; box-shadow: 0 6px 12px -6px #000; text-shadow: 0 1px 2px #0008;
+  rotate: calc((var(--i) - 1.5) * 10deg); animation: hop 2.4s ease-in-out infinite; animation-delay: calc(var(--i) * .12s);
+}
+.pick-card.g-uno .gc-art > * { transform: scale(.75); }
