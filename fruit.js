@@ -17,11 +17,11 @@ const { Engine, Bodies, Body, Composite, Events } = window.Matter;
 
 // ---------- 果物 ----------
 export const FRUITS = [
-  { name: 'さくらんぼ', r: 13, c: '#e8384f', c2: '#ff8597' },
+  { name: 'さくらんぼ', r: 13, c: '#a3122e', c2: '#ff5c7a' },
   { name: 'いちご', r: 18, c: '#ff4d6d', c2: '#ff9aa9' },
   { name: 'ぶどう', r: 24, c: '#8e5bd6', c2: '#bf9bf0' },
   { name: 'みかん', r: 30, c: '#ff9f1c', c2: '#ffd08a' },
-  { name: 'かき', r: 37, c: '#f2711c', c2: '#ffae73' },
+  { name: 'かき', r: 37, c: '#d9480f', c2: '#ff8c42' },
   { name: 'りんご', r: 45, c: '#e63946', c2: '#ff8a93' },
   { name: 'なし', r: 54, c: '#e3d26f', c2: '#fff3b0' },
   { name: 'もも', r: 63, c: '#ffa6c1', c2: '#ffe0ea' },
@@ -99,14 +99,28 @@ function drawFruit(ctx, x, y, r, lvl, ang = 0) {
   } else if (lvl === 1) { // いちごのつぶ
     ctx.fillStyle = '#ffe08a';
     for (const [a, b] of [[-0.4, -0.1], [0.3, -0.2], [0, 0.3], [-0.3, 0.45], [0.45, 0.3], [0.05, -0.45]]) { ctx.beginPath(); ctx.ellipse(a * r, b * r, r * 0.06, r * 0.1, 0, 0, Math.PI * 2); ctx.fill(); }
+  } else if (lvl === 3) { // みかんのつぶつぶ
+    ctx.fillStyle = '#ffffff40';
+    for (let i = 0; i < 14; i++) { const a = i * 2.4, d = r * (0.25 + (i % 4) * 0.17); ctx.beginPath(); ctx.arc(Math.cos(a) * d, Math.sin(a) * d, r * 0.045, 0, Math.PI * 2); ctx.fill(); }
   } else if (lvl === 2) { // ぶどうのつぶ
     ctx.fillStyle = '#ffffff33';
     for (const [a, b] of [[-0.35, -0.3], [0.3, -0.3], [0, 0.1], [-0.35, 0.35], [0.35, 0.35]]) { ctx.beginPath(); ctx.arc(a * r, b * r, r * 0.3, 0, Math.PI * 2); ctx.fill(); }
   }
   ctx.restore();
   // へた・葉っぱ
-  if (lvl !== 8) {
-    ctx.fillStyle = lvl === 0 || lvl === 5 ? '#6b3b1c' : '#3a7d2c';
+  if (lvl === 0) { // さくらんぼ：長い軸
+    ctx.strokeStyle = '#5b3a1a'; ctx.lineWidth = Math.max(1.5, r * 0.14); ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(0, -r * 0.85); ctx.quadraticCurveTo(r * 0.15, -r * 1.6, r * 0.75, -r * 1.85); ctx.stroke();
+    ctx.fillStyle = '#4caf50'; ctx.beginPath(); ctx.ellipse(r * 0.85, -r * 1.75, r * 0.38, r * 0.16, -0.4, 0, Math.PI * 2); ctx.fill();
+  } else if (lvl === 1) { // いちご：ぎざぎざのへた
+    ctx.fillStyle = '#2f9e44';
+    for (const a of [-1.1, -0.55, 0, 0.55, 1.1]) { ctx.save(); ctx.rotate(a); ctx.beginPath(); ctx.ellipse(0, -r * 0.92, r * 0.13, r * 0.3, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
+  } else if (lvl === 4) { // かき：四角い大きなへた
+    ctx.fillStyle = '#2b5d1e';
+    for (const a of [0, Math.PI / 2, Math.PI, Math.PI * 1.5]) { ctx.save(); ctx.translate(0, -r * 0.82); ctx.rotate(a + Math.PI / 4); ctx.beginPath(); ctx.ellipse(r * 0.2, 0, r * 0.24, r * 0.12, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
+    ctx.fillStyle = '#3d2412'; ctx.fillRect(-r * 0.06, -r * 1.02, r * 0.12, r * 0.18);
+  } else if (lvl !== 8) {
+    ctx.fillStyle = lvl === 5 ? '#6b3b1c' : '#3a7d2c';
     ctx.fillRect(-r * 0.05, -r * 1.12, r * 0.1, r * 0.25);
     ctx.fillStyle = '#4caf50'; ctx.beginPath(); ctx.ellipse(r * 0.18, -r * 0.98, r * 0.2, r * 0.09, -0.5, 0, Math.PI * 2); ctx.fill();
   } else {
@@ -128,7 +142,8 @@ function fruitIcon(lvl, size = 28) {
   const c = document.createElement('canvas'), dpr = Math.min(devicePixelRatio || 1, 2);
   c.width = c.height = size * dpr;
   const ctx = c.getContext('2d'); ctx.scale(dpr, dpr);
-  drawFruit(ctx, size / 2, size / 2 + size * 0.06, size * 0.4, lvl);
+  if (lvl === 0) drawFruit(ctx, size * 0.42, size * 0.66, size * 0.28, lvl); // 長い軸が入るように小さめ
+  else drawFruit(ctx, size / 2, size / 2 + size * 0.06, size * 0.4, lvl);
   return c.toDataURL();
 }
 const ICONS = [];
@@ -512,7 +527,7 @@ function updateHud() {
   const G = S.G; if (!G) return;
   setHTML(document.getElementById('hud'), `
     <div class="hud-box"><small>スコア</small><b>${G.score}</b></div>
-    <div class="hud-box"><small>つぎ</small>${icon(G.next, 34)}</div>
+    <div class="hud-box"><small>つぎ</small>${icon(G.next, 34)}<em class="fname">${FRUITS[G.next].name}</em></div>
     <div class="hud-box"><small>さいこう</small>${icon(G.best, 34)}</div>`);
   const st = stateOf();
   if (st.endAt) {
