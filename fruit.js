@@ -525,9 +525,11 @@ function updateDynamic() {
 }
 function updateHud() {
   const G = S.G; if (!G) return;
+  // 落とした直後（上にまだ果物が出ていない間）は、これから出てくる果物を「つぎ」に出したままにする
+  const nx = G.canDrop || G.over ? G.next : G.cur;
   setHTML(document.getElementById('hud'), `
     <div class="hud-box"><small>スコア</small><b>${G.score}</b></div>
-    <div class="hud-box"><small>つぎ</small>${icon(G.next, 34)}<em class="fname">${FRUITS[G.next].name}</em></div>
+    <div class="hud-box"><small>つぎ</small>${icon(nx, 34)}<em class="fname">${FRUITS[nx].name}</em></div>
     <div class="hud-box"><small>さいこう</small>${icon(G.best, 34)}</div>`);
   const st = stateOf();
   if (st.endAt) {
