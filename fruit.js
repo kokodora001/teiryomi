@@ -1,8 +1,8 @@
 // =============================================================
 //  フルーツまぜまぜ — 同じ果物をくっつけて大きくし、スイカを目指す落ち物パズル（対戦）
 //  ・全員同時スタート。落ちてくる果物の順番は全員同じ（公平）
-//  ・スイカを作った人がその場で勝ち → 全員終了
-//  ・スイカが出ないまま全員ラインを越えたら終了 → スコア勝負
+//  ・「スイカ勝負」：スイカを作った人がその場で勝ち → 全員終了。出ないまま全員ラインを越えたらスコア勝負
+//  ・「スコア勝負」：スイカを作っても続行。全員がゲームオーバー（か時間切れ）になったらスコアの高い人の勝ち
 //  物理演算は Matter.js（matter.min.js を同梱, MIT License）
 // =============================================================
 import { createStore, isLocalMode } from './store.js';
@@ -61,7 +61,8 @@ const isHost = () => hostId() === S.pid;
 function player(id) { const p = S.room?.players?.[id]; return p ? { id, ...p } : { id, name: '???', color: '#888', online: false }; }
 const stateOf = () => S.room?.state || { phase: 'lobby', game: 0 };
 const curGame = () => S.room?.games?.[gk(stateOf().game)] || null;
-const settings = () => ({ limit: S.room?.meta?.limit ?? 0 });
+const settings = () => ({ limit: S.room?.meta?.limit ?? 0, mode: S.room?.meta?.mode ?? 'suika' });
+const modeOf = (g) => g?.mode || settings().mode; // ゲーム開始時のモード（途中で設定を変えても影響しない）
 const inGame = (g) => !!g?.order?.includes(S.pid);
 const pdata = (g, id) => g?.ps?.[id] || {};
 // 終わった人：ゲームオーバー／切断中／20秒以上更新がない（スマホが止まっている）
@@ -178,7 +179,7 @@ function newLocalGame(seed, restore) {
   };
   if (restore) { // リロード復帰：保存してある盤面と落とした回数から再現
     for (let i = 0; i < restore.drops; i++) { G.cur = G.next; G.next = draw(); }
-    G.drops = restore.drops; G.score = restore.score || 0; G.best = restore.best || 0;
+    G.drops = restore.drops; G.score = restore.score || 0; G.best = restore.best || 0; G.suika = restore.suika || 0;
     for (const f of decSnap(restore.snap)) addFruit(G, f.x, f.y, f.lvl, true);
   }
   Events.on(engine, 'collisionStart', (e) => onCollide(G, e));
@@ -208,7 +209,11 @@ function onCollide(G, e) {
     const pts = pointsFor(lvl + 1);
     G.score += pts; G.best = Math.max(G.best, lvl + 1); G.dirty = true;
     G.fx.push({ x, y, r: FRUITS[lvl + 1].r, t: 0, c: FRUITS[lvl + 1].c2, txt: `+${pts}` });
-    if (lvl + 1 === LAST && !G.won) { G.won = true; onWatermelon(); }
+    if (lvl + 1 === LAST) {
+      G.suika = (G.suika || 0) + 1;
+      if (modeOf(curGame()) === 'suika') { if (!G.won) { G.won = true; onWatermelon(); } }
+      else { confetti(80, FRUITS.map((f) => f.c)); toast(`🍉 スイカ完成！（${G.suika}個目）このまま続けてスコアをのばそう`); }
+    }
   }
 }
 function dropNow() {
@@ -243,7 +248,7 @@ async function sendState(force = false) {
   const G = S.G, st = stateOf(); if (!G || !S.code || st.phase !== 'play' || !inGame(curGame())) return;
   if (!force && !G.dirty && performance.now() - G.sentAt < 3000) return;
   G.sentAt = performance.now(); G.dirty = false;
-  await S.store.set(`${gamePath()}/ps/${S.pid}`, { score: G.score, best: G.best, drops: G.drops, over: G.over, snap: encSnap(G.fruits), at: S.store.now() }).catch(() => {});
+  await S.store.set(`${gamePath()}/ps/${S.pid}`, { score: G.score, best: G.best, suika: G.suika || 0, drops: G.drops, over: G.over, snap: encSnap(G.fruits), at: S.store.now() }).catch(() => {});
 }
 async function onWatermelon() {
   const st = stateOf(); if (st.phase !== 'play') return;
@@ -358,8 +363,8 @@ function rulesHTML(open = false) {
     </ol>
     ${ladderHTML()}
     <div class="score-legend">
-      <span>🍉 <b>スイカを作ったらその場で勝ち！</b></span>
-      <span>全員ゲームオーバーなら<b>スコア勝負</b></span>
+      <span>🍉 <b>スイカ勝負</b>：スイカを作ったらその場で勝ち！（出なければスコア勝負）</span>
+      <span>🏅 <b>スコア勝負</b>：全員ゲームオーバーまで続けて、スコアが高い人の勝ち</span>
     </div>
     <p class="muted small">PCは ← → キーで移動、スペースで落とすこともできます。</p>
   </details>`;
@@ -467,7 +472,7 @@ function syncLocalGame() {
 async function sendFinal() {
   const G = S.G; if (!G) return;
   const st = stateOf(); if (!inGame(curGame())) return;
-  await S.store.set(`${gamePath()}/ps/${S.pid}`, { score: G.score, best: G.best, drops: G.drops, over: true, snap: encSnap(G.fruits), at: S.store.now() }).catch(() => {});
+  await S.store.set(`${gamePath()}/ps/${S.pid}`, { score: G.score, best: G.best, suika: G.suika || 0, drops: G.drops, over: true, snap: encSnap(G.fruits), at: S.store.now() }).catch(() => {});
 }
 function onTick() {
   if (!S.room) return;
@@ -492,7 +497,7 @@ async function startGame() {
   const n = stateOf().game + 1, now = S.store.now(), startAt = now + 3500, { limit } = settings();
   await S.store.update(roomPath(), {
     state: { phase: 'play', game: n, startAt, endAt: limit ? startAt + limit * 60000 : 0 },
-    [`games/${gk(n)}`]: { order: ids, seed: Math.floor(Math.random() * 2 ** 31), startedAt: Date.now() },
+    [`games/${gk(n)}`]: { order: ids, seed: Math.floor(Math.random() * 2 ** 31), startedAt: Date.now(), mode: settings().mode },
   });
 }
 
@@ -580,15 +585,20 @@ function lobbyView() {
     ${rulesHTML(true)}`;
 }
 function lobbyDyn() {
-  const ps = playerList(), host = isHost(), { limit } = settings(), n = onlinePlayers().length, h = hostId();
+  const ps = playerList(), host = isHost(), { limit, mode } = settings(), n = onlinePlayers().length, h = hostId();
   return `<section class="card">
       <h3>参加メンバー <small>${n}人</small></h3>
       <ul class="plist">${ps.map((p) => `<li class="${p.online ? '' : 'off'}">${avatar(p)}<span class="nm">${esc(p.name)}${p.id === S.pid ? ' <small class="muted">(あなた)</small>' : ''}</span>${p.id === h ? '<span class="tag host">ホスト</span>' : ''}${p.online ? '' : '<span class="muted tiny">切断中</span>'}</li>`).join('')}</ul>
     </section>
     <section class="card">
+      <h3>勝ち方</h3>
+      <div class="seg">${[['suika', '🍉 スイカ勝負'], ['score', '🏅 スコア勝負']].map(([v, l]) => `<button class="seg-btn ${mode === v ? 'on' : ''}" data-action="set-mode" data-v="${v}" ${host ? '' : 'disabled'}>${l}</button>`).join('')}</div>
+      <p class="muted small">${mode === 'suika' ? '誰かがスイカを作ったら、その人の勝ちで全員終了' : 'スイカを作っても終わらない。全員がゲームオーバーになるまで続けて、スコアが一番高い人の勝ち'}</p>
+    </section>
+    <section class="card">
       <h3>制限時間</h3>
       <div class="seg">${[0, 3, 5, 10].map((v) => `<button class="seg-btn ${limit === v ? 'on' : ''}" data-action="set-limit" data-v="${v}" ${host ? '' : 'disabled'}>${v ? v + '分' : 'なし'}</button>`).join('')}</div>
-      <p class="muted small">${limit ? `${limit}分たったら、その時点のスコアで勝負` : 'スイカができるか、全員がゲームオーバーになるまで続きます'}${host ? '' : '（ホストが設定します）'}</p>
+      <p class="muted small">${limit ? `${limit}分たったら、その時点のスコアで勝負` : (mode === 'suika' ? 'スイカができるか、全員がゲームオーバーになるまで続きます' : '全員がゲームオーバーになるまで続きます')}${host ? '' : '（ホストが設定します）'}</p>
     </section>
     ${host
       ? `<button class="btn primary big" data-action="start">${n === 1 ? 'ひとりで練習スタート' : 'みんなでスタート！'}<small>3秒のカウントダウンのあと、全員同時に始まります</small></button>`
@@ -616,7 +626,7 @@ function rivalsHTML() {
     return `<div class="rival ${me ? '' : 'big'}">
       <canvas class="mini" data-mini="${id}"></canvas>
       <div class="rv-name">${avatar(p, 'xs')}<span>${esc(p.name)}</span></div>
-      <div class="rv-score"><b>${d.score || 0}</b>${d.best ? icon(d.best, 18) : ''}${done ? '<em>終了</em>' : ''}</div>
+      <div class="rv-score"><b>${d.score || 0}</b>${d.best ? icon(d.best, 18) : ''}${d.suika > 1 ? `<small>×${d.suika}</small>` : ''}${done ? '<em>終了</em>' : ''}</div>
     </div>`;
   }).join('');
 }
@@ -637,11 +647,11 @@ function resultView() {
   return `<section class="final-head">
       <div class="trophy">${g.reason === 'suika' ? icon(LAST, 72) : '🏆'}</div>
       <h2>${title}</h2>
-      <p class="muted small">${g.reason === 'suika' ? 'スイカを作った人の勝ち' : g.reason === 'time' ? '時間切れ → スコア勝負' : '全員ゲームオーバー → スコア勝負'}</p>
+      <p class="muted small">${g.reason === 'suika' ? 'スイカを作った人の勝ち' : g.reason === 'time' ? '時間切れ → スコア勝負' : modeOf(g) === 'score' ? 'スコア勝負（全員ゲームオーバー）' : '全員ゲームオーバー → スコア勝負'}</p>
     </section>
     <section class="card"><ol class="standings">${rows.map((x, i) => {
       const p = player(x.id);
-      return `<li class="${x.id === S.pid ? 'me' : ''}"><span class="rank r${i + 1}">${i + 1}</span>${avatar(p, 'sm')}<span class="nm">${esc(p.name)}${x.id === g.winner ? ' 👑' : ''}</span><span class="fr-best">${icon(x.best || 0, 22)}</span><span class="muted tiny">通算🏆${wins[x.id] || 0}</span><b>${x.score || 0}<small>点</small></b></li>`;
+      return `<li class="${x.id === S.pid ? 'me' : ''}"><span class="rank r${i + 1}">${i + 1}</span>${avatar(p, 'sm')}<span class="nm">${esc(p.name)}${x.id === g.winner ? ' 👑' : ''}</span><span class="fr-best">${icon(x.best || 0, 22)}${x.suika > 1 ? `<small>×${x.suika}</small>` : ''}</span><span class="muted tiny">通算🏆${wins[x.id] || 0}</span><b>${x.score || 0}<small>点</small></b></li>`;
     }).join('')}</ol></section>
     <h3 class="sec-title">みんなの箱</h3>
     <div class="fr-gallery">${rows.map((x) => `<figure><canvas class="mini" data-mini="${x.id}"></canvas><figcaption>${esc(player(x.id).name)}</figcaption></figure>`).join('')}</div>
@@ -707,6 +717,7 @@ const actions = {
   join: (el) => joinRoom(el.dataset.code || document.getElementById('code')?.value),
   'copy-link': copyLink, share: shareLink, leave: leaveRoom,
   'set-limit': (el) => S.store.set(`${roomPath()}/meta/limit`, +el.dataset.v),
+  'set-mode': (el) => S.store.set(`${roomPath()}/meta/mode`, el.dataset.v),
   start: startGame,
   'to-lobby': () => S.store.update(roomPath(), { 'state/phase': 'lobby' }),
 };
